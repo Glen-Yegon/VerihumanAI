@@ -48,7 +48,7 @@ window.addEventListener("load", () => {
 // Payment button handler
 paymentBtn.addEventListener("click", () => {
   // Replace with your actual payment page URL
-  window.location.href = "/payment.html";
+  window.location.href = "/Frontend/pay.html";
 });
 
 // Log out button (clears session storage and redirects)

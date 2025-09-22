@@ -1,8 +1,3 @@
-document.querySelector('.menu-toggle').addEventListener('click', () => {
-    alert("Sidebar menu opened (will implement later)");
-});
-
-
 window.addEventListener("DOMContentLoaded", () => {
     // Animate sidebar for desktop
     if (window.innerWidth > 768) {
@@ -221,30 +216,41 @@ document.addEventListener("DOMContentLoaded", () => {
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebarToggle");
 const closeSidebar = document.getElementById("closeSidebar");
+const menuToggle = document.querySelector(".menu-toggle");
 
-// Toggle sidebar open/close
+// Desktop expand/collapse
 sidebarToggle.addEventListener("click", (e) => {
-  e.stopPropagation(); // prevent click from bubbling
+  e.stopPropagation();
   sidebar.classList.toggle("expanded");
-
-  // Change toggle symbol
   sidebarToggle.querySelector(".toggle-symbol").textContent =
     sidebar.classList.contains("expanded") ? "<" : ">";
 });
 
-// Close button inside sidebar
+// Mobile: open sidebar with hamburger menu
+menuToggle.addEventListener("click", (e) => {
+  e.stopPropagation();
+  sidebar.classList.add("expanded");
+});
+
+// Close button
 closeSidebar.addEventListener("click", () => {
   sidebar.classList.remove("expanded");
   sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
 });
 
-// Close when clicking outside sidebar
+// Close on outside click
 document.addEventListener("click", (e) => {
-  if (sidebar.classList.contains("expanded") && !sidebar.contains(e.target) && e.target !== sidebarToggle) {
+  if (
+    sidebar.classList.contains("expanded") &&
+    !sidebar.contains(e.target) &&
+    e.target !== sidebarToggle &&
+    e.target !== menuToggle
+  ) {
     sidebar.classList.remove("expanded");
     sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
   }
 });
+
 
 
 document.querySelectorAll('a[href="#"]').forEach(link => {
@@ -267,3 +273,47 @@ chatInput.addEventListener("keydown", (e) => {
     sendBtn.click();    // simulate click on Send button
   }
 });
+
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const links = document.querySelectorAll("a");
+    const transition = document.getElementById("page-transition");
+
+    // Function to disable transition when user uses back/forward
+    window.addEventListener("pageshow", (event) => {
+      const comingFromHistory =
+        event.persisted ||
+        window.performance.getEntriesByType("navigation")[0]?.type === "back_forward";
+
+      if (comingFromHistory) {
+        transition.classList.remove("active"); // No transition on back/forward
+        sessionStorage.removeItem("transitioning");
+      } else {
+        // Normal link-based navigation
+        if (sessionStorage.getItem("transitioning") === "true") {
+          sessionStorage.setItem("transitioning", "false");
+          transition.classList.remove("active"); // Fade in after animation
+        } else {
+          transition.classList.remove("active"); // Initial page load
+        }
+      }
+    });
+
+    links.forEach(link => {
+      const href = link.getAttribute("href");
+      if (href && !href.startsWith("#") && !href.startsWith("http")) {
+        link.addEventListener("click", e => {
+          e.preventDefault();
+          sessionStorage.setItem("transitioning", "true");
+          transition.classList.add("active");
+
+          setTimeout(() => {
+            window.location.href = href;
+          }, 1500); // Match your CSS animation duration
+        });
+      }
+    });
+  });
+
+  

@@ -128,6 +128,8 @@ html, body {
     gap: 20px;
 }
 
+
+
 .logo {
     width: 50px;
     height: auto;
@@ -205,9 +207,15 @@ html, body {
 
 /* ===== RESPONSIVE RULES ===== */
 @media (max-width: 768px) {
-    .sidebar {
-        display: none; /* Hide sidebar on mobile */
-    }
+  .sidebar {
+    width: 0;
+    padding: 0;
+    z-index: 999999 !important;
+  }
+  .sidebar.expanded {
+    width: 240px;
+    padding: 20px;
+  }
     .mobile-header {
         display: flex; /* Show mobile header only on small screens */
     }
@@ -821,5 +829,57 @@ html, body {
   .modal-content {
     padding: 1.5rem;
     border-radius: 15px;
+  }
+}
+
+
+
+
+
+#page-transition {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Glassmorphism style */
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+
+  /* Start off-screen above */
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: transform 0.8s ease, opacity 0.8s ease;
+}
+
+#page-transition.active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+#page-transition.fade-up {
+  /* Slide up to hide */
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: transform 0.8s ease, opacity 0.8s ease;
+}
+
+.logo-wrapper img {
+  width: 340px;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
   }
 }
