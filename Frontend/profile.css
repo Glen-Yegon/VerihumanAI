@@ -1,0 +1,334 @@
+/* Base Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background: linear-gradient(90deg, black, #00246b, black, #00246b, black);
+  background-size: 400% 400%;
+  animation: bgPulse 20s ease infinite;
+  color: #cadcfc;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  position: relative; /* for overlays */
+  overflow: hidden;
+}
+
+@keyframes bgPulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Vignette to darken edges */
+.vignette {
+  position: fixed;
+  pointer-events: none;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.7) 100%);
+  z-index: 1;
+}
+
+/* Subtle grid overlay */
+.grid-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-image: 
+    linear-gradient(rgba(138, 182, 249, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 182, 249, 0.15) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.15;
+  z-index: 2;
+  pointer-events: none;
+}
+
+
+/* Make sure your profile container is above particles */
+.profile-container {
+  position: relative;
+  z-index: 10;
+}
+
+
+.profile-container {
+    background: transparent;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 0 40px rgba(138, 182, 249, 0.3);
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: fadeIn 1.3s ease forwards;
+}
+
+/* Profile Photo Section */
+.profile-photo-section {
+  display: flex;
+  justify-content: center;
+}
+
+.profile-photo-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 3px solid #8ab6f9;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+  outline-offset: 4px;
+}
+.profile-photo-wrapper:focus,
+.profile-photo-wrapper:hover {
+  box-shadow: 0 0 20px #cadcfc;
+}
+
+.profile-photo-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: drop-shadow(0 0 5px #8ab6f9);
+  transition: transform 0.4s ease;
+}
+
+.profile-photo-wrapper:hover img {
+  transform: scale(1.05);
+}
+
+.upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 36, 107, 0.7);
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  color: #cadcfc;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+.profile-photo-wrapper:hover .upload-overlay,
+.profile-photo-wrapper:focus .upload-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.upload-icon {
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 0 2px #cadcfc);
+}
+
+/* Profile Info Section */
+.profile-info-section {
+  text-align: center;
+  font-weight: 100;
+  color: #cadcfc;
+}
+
+.profile-name {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 100;
+  font-size: 2.2rem;
+  margin-bottom: 1.5rem;
+  letter-spacing: 1.3px;
+  text-shadow: 0 0 8px #8ab6f9;
+}
+
+.masked-uid {
+  letter-spacing: 0.3rem; /* spaces out dots nicely */
+  font-family: 'Poppins', sans-serif;
+  font-weight: 100;
+  font-size: 1.2rem;
+  user-select: none;
+}
+
+.visible-uid {
+  letter-spacing: normal;
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 100;
+  font-size: 1.2rem;
+  user-select: text;
+  max-width: 300px;       /* Limit width */
+  overflow: hidden;       /* Hide overflow */
+  text-overflow: ellipsis; /* Show ... if truncated */
+  white-space: nowrap;    /* Keep text on one line */
+}
+
+
+
+.info-group {
+  margin-bottom: 1rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 100;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  background: transparent;
+  border-bottom: 3px solid #cadcfc;
+  padding: 0.7rem 1.3rem;
+  border-radius: 10px;
+  letter-spacing: 0.7px;
+  user-select: text;
+}
+
+.info-group label {
+  color: #cadcfc;
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 100;
+  text-transform: uppercase;
+}
+
+.info-group p {
+  color: #cadcfc;
+  font-weight: 100;
+  letter-spacing: 0.8px;
+  word-break: break-word;
+}
+
+/* CTAs */
+.cta-group {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-top: 1.6rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 100;
+  padding: 0.9rem 2.3rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px transparent;
+  border: none;
+  user-select: none;
+}
+
+.btn-primary {
+  background: #8ab6f9;
+  color: #00246b;
+  box-shadow: 0 0 10px #8ab6f9;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background: #cadcfc;
+  color: #00246b;
+  box-shadow: 0 0 40px #cadcfc;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 2px solid #cadcfc;
+  color: #cadcfc;
+}
+.btn-secondary:hover,
+.btn-secondary:focus {
+  background: #cadcfc;
+  color: #00246b;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+  .profile-container {
+    max-width: 90vw;
+    padding: 2rem 1.2rem;
+  }
+
+  .profile-photo-wrapper {
+    width: 120px;
+    height: 120px;
+  }
+
+  .profile-name {
+    font-size: 1.8rem;
+  }
+
+  .info-group {
+    font-size: 1rem;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.7rem 1.8rem;
+  }
+}
+
+
+
+/* Back Button Styling */
+.back-button {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(0, 36, 107, 0.85);
+  color: #cadcfc;
+  border: 1px solid #8ab6f9;
+  border-radius: 50px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  backdrop-filter: blur(8px);
+  transition: all 0.25s ease-in-out;
+  z-index: 999;
+}
+
+.back-button:hover {
+  background: rgba(138, 182, 249, 0.9);
+  color: #00246b;
+  transform: translateY(-2px);
+}
+
+.back-button svg {
+  transition: transform 0.25s ease-in-out;
+}
+
+.back-button:hover svg {
+  transform: translateX(-3px);
+}
+
+/* Mobile Responsive */
+@media (max-width: 500px) {
+  .back-button span {
+    display: none; /* Show only icon on small screens */
+  }
+  .back-button {
+    padding: 10px;
+    border-radius: 50%;
+  }
+}

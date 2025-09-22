@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verihuman</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  
+<!-- Sidebar (Desktop) -->
+<aside class="sidebar" id="sidebar">
+  <!-- Close Button -->
+  <div class="close-btn" id="closeSidebar">&times;</div>
+
+  <div class="sidebar-top">
+    <!-- Logo -->
+    <img src="Images/vERIHUMAN (6).png" alt="Verihuman Logo" class="logo">
+
+    <!-- New Chat Icon -->
+    <div class="icon-btn" title="New Chat">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
+        <path d="M12 5v14m-7-7h14" stroke="black" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">New Chat</span>
+    </div>
+
+    <!-- History Icon -->
+    <div class="icon-btn" title="History">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
+        <path d="M12 8v5l3 3" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="9" stroke="black" stroke-width="2" fill="none"/>
+      </svg>
+      <span class="icon-label">History</span>
+    </div>
+
+    <!-- Search Icon -->
+    <div class="icon-btn" title="Search">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" stroke="black" stroke-width="2" fill="none"/>
+        <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="black" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">Search</span>
+    </div>
+
+    <!-- Expand/Collapse Menu Button -->
+    <div class="icon-btn toggle-btn" id="sidebarToggle" title="Expand Menu">
+      <span class="toggle-symbol" style="color: black;">></span>
+         <span class="icon-label">Close</span>
+    </div>
+  </div>
+
+  <div class="sidebar-middle">
+    <h1 class="brand-name">VERIHUMAN</h1>
+  </div>
+
+<!-- Sidebar Bottom -->
+<div class="sidebar-bottom">
+  <div id="user-avatar" class="profile-img"></div>
+</div>
+
+
+</aside>
+
+<!-- Profile Modal -->
+<div id="profile-modal" class="modal">
+  <div class="modal-content">
+    <button id="close-modal" class="close-btn" type="button">&times;</button>
+    
+    <!-- Avatar -->
+    <div class="modal-avatar"></div>
+    
+    <hr class="divider" />
+
+    <!-- Links -->
+    <div class="modal-links">
+      <!-- Profile -->
+      <a href="profile.html" id="profile-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+        </svg>
+        Profile
+      </a>
+
+      <!-- Email / Login -->
+      <p id="user-email"></p>
+
+      <!-- Upgrade Plan -->
+      <a href="pay.html">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M13 2L3 14h9v8l9-12h-9V2z"/>
+        </svg>
+        Upgrade Plan
+      </a>
+
+      <!-- Logout -->
+      <button id="logout-btn" class="logout-btn" style="display:none;" type="button">
+        Log Out
+      </button>
+
+      <!-- Help -->
+      <a href="help.html">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2zm1 17h-2v-2h2v2zm1.07-7.75-.9.92C12.45 12.9 12 13.5 12 15h-2v-.5c0-1 .45-1.9 1.17-2.58l1.24-1.26a2 2 0 1 0-3.41-1.42H7a4 4 0 1 1 7.07 2.83z"/>
+        </svg>
+        Help
+      </a>
+
+      <!-- Settings -->
+      <a href="settings.html">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .11-.66l-1.92-3.32a.5.5 0 0 0-.61-.21l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.6.24-1.14.56-1.63.94l-2.39-.96a.5.5 0 0 0-.61.21l-1.92 3.32a.5.5 0 0 0 .11.66l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.11.66l1.92 3.32c.14.24.43.34.7.21l2.39-.96c.49.38 1.03.7 1.63.94l.36 2.54c.05.27.26.42.5.42h3.84c.24 0 .45-.15.5-.42l.36-2.54c.6-.24 1.14-.56 1.63-.94l2.39.96c.27.13.56.03.7-.21l1.92-3.32a.5.5 0 0 0-.11-.66l-2.03-1.58zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>
+        </svg>
+        Settings
+      </a>
+    </div>
+
+    <!-- Footer text -->
+    <p class="modal-footer">⚡ Powered by AI • Designed for the Future ⚡</p>
+  </div>
+</div>
+
+
+
+
+
+    <!-- Topbar (Mobile) -->
+    <header class="mobile-header">
+        <!-- Menu Icon -->
+        <div class="menu-toggle" title="Menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white" viewBox="0 0 24 24">
+                <line x1="3" y1="6" x2="21" y2="6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                <line x1="3" y1="12" x2="21" y2="12" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                <line x1="3" y1="18" x2="21" y2="18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+
+        <!-- Mobile Logo -->
+        <img src="Images/vERIHUMAN (6).png" alt="Verihuman Logo" class="mobile-logo">
+
+        <!-- Mobile New Chat Icon -->
+        <div class="icon-btn" title="New Chat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
+                <path d="M12 5v14m-7-7h14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+    </header>
+    
+<main style="position: relative; width: 100vw; height: 100vh; ">
+
+  <!-- Canvas for text particles effect on top -->
+  <canvas id="text-particles" style="position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events:none;"></canvas>
+
+<!-- AI Welcome Chat Bubble -->
+<div class="ai-welcome-container" style="opacity: 0;">
+  <div class="ai-chat-bubble">
+    <span id="ai-typing"></span>
+  </div>
+</div>
+
+
+
+<!-- Chat Section Wrapper -->
+<section id="chat-section" class="chat-section">
+  <!-- Chat Messages Container -->
+  <div id="chat-container" class="chat-container"></div>
+</section>
+
+<!-- Bottom Input Bar wrapped in a form -->
+<form id="chatForm" class="chat-input-container">
+  <button class="file-upload-btn" title="Add files" type="button">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#cadcfc" viewBox="0 0 24 24">
+      <path d="M12 5v14m-7-7h14" stroke="#cadcfc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+  <input type="text" placeholder="Type your message..." class="chat-input" id="chatInput" autocomplete="off">
+  <button class="send-btn" id="sendBtn" title="Send" type="submit">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#cadcfc" viewBox="0 0 24 24">
+      <path d="M22 2L11 13" stroke="#cadcfc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M22 2L15 22l-4-9-9-4 20-9z" stroke="#cadcfc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+</form>
+
+
+<!-- Neural Lines Background -->
+<div class="neural-lines"></div>
+
+
+<!-- Background Video -->
+<video autoplay muted loop playsinline id="bgVideo">
+  <source src="videos/mainvid (2).mp4" type="video/mp4">
+  <!-- Fallback image if video doesn't load -->
+</video>
+
+</main>
+
+
+    <script src="scripts.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <script>
+      window.onload = () => {
+  const userUID = sessionStorage.getItem("userUID");
+  const userEmail = sessionStorage.getItem("userEmail");
+
+  if (userUID && userEmail) {
+    console.log("User is logged in:", userEmail);
+    // Update UI to show logged-in state
+    // e.g., show user profile, logout button, etc.
+  } else {
+    console.log("User is not logged in.");
+    // Redirect to login page or show login form
+     window.location.href = "sign.html";
+  }
+};
+    </script>
+
+
+
+<script type="module">
+import { app } from "./firebase.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const avatarBtn = document.getElementById("user-avatar"); // sidebar bottom
+const modal = document.getElementById("profile-modal");
+const closeBtn = document.getElementById("close-modal");
+const modalAvatar = document.querySelector(".modal-avatar");
+const userEmailEl = document.getElementById("user-email");
+const logoutBtn = document.getElementById("logout-btn");
+
+// Open modal ONLY when avatar is clicked
+avatarBtn.addEventListener("click", () => {
+  modal.style.display = "flex";
+});
+
+// Close modal with (X)
+closeBtn.addEventListener("click", () => {
+  modal.style.display = "none";
+});
+
+// Close modal when clicking outside
+window.addEventListener("click", (e) => {
+  if (e.target === modal) {
+    modal.style.display = "none";
+  }
+});
+
+// Load user data
+async function loadUserData() {
+  const userUID = sessionStorage.getItem("userUID");
+  if (!userUID) {
+    userEmailEl.innerHTML = `<a href="sign.html">Sign Up / Login</a>`;
+    logoutBtn.style.display = "none";
+    return;
+  }
+
+  try {
+    const photoRef = doc(db, "photo", userUID);
+    const docSnap = await getDoc(photoRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+
+      // Profile picture in both sidebar + modal
+      if (data.photoBase64) {
+        [modalAvatar, document.getElementById("user-avatar")].forEach(el => {
+          el.style.backgroundImage = `url('${data.photoBase64}')`;
+          el.style.backgroundSize = "cover";
+          el.style.backgroundPosition = "center";
+          el.style.borderRadius = "50%";
+        });
+      }
+
+      // Email display
+      if (data.email) {
+        userEmailEl.textContent = data.email;
+      }
+    }
+    logoutBtn.style.display = "block";
+  } catch (err) {
+    console.error("Error fetching user data:", err);
+  }
+}
+
+// Logout
+logoutBtn.addEventListener("click", () => {
+  signOut(auth).then(() => {
+    sessionStorage.clear();
+    window.location.href = "sign.html";
+  }).catch(err => console.error("Error signing out:", err));
+});
+
+loadUserData();
+</script>
+
+
+<script>
+(function () {
+  const chatContainer = document.getElementById("chat-container");
+  const chatInput = document.getElementById("chatInput");
+  const chatForm = document.getElementById("chatForm");
+
+  function scrollToBottom() {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+function createBubble(message = "", sender = "ai", options = {}) {
+  // Wrapper div for avatar + bubble
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("chat-wrapper", sender); // Use a new wrapper class
+
+  // Avatar element
+  const avatarEl = document.createElement("div");
+  avatarEl.className = "avatar";
+  if (sender === "ai") {
+    avatarEl.style.backgroundImage = "url('images/vERIHUMAN (8).png')"; // Replace with your AI logo
+  } else {
+    const userAvatar = document.getElementById("user-avatar");
+    if (userAvatar) avatarEl.style.backgroundImage = userAvatar.style.backgroundImage || "url('default-user.png')";
+  }
+
+  // Bubble element
+  const bubble = document.createElement("div");
+  bubble.classList.add("chat-bubble", sender);
+  if (options.scanning) {
+    bubble.classList.add("scanning");
+    bubble.innerHTML = '<span class="scanning-dots"><span></span><span></span><span></span></span>';
+  } else {
+    bubble.textContent = message;
+  }
+
+  // Append avatar + bubble to wrapper
+  wrapper.appendChild(avatarEl);
+  wrapper.appendChild(bubble);
+
+  chatContainer.appendChild(wrapper);
+  scrollToBottom();
+  return bubble;
+}
+
+
+  function typeText(el, text) {
+    return new Promise((resolve) => {
+      el.textContent = "";
+      const cursor = document.createElement("span");
+      cursor.className = "typing-cursor";
+      el.appendChild(cursor);
+
+      const length = Math.max(1, text.length);
+      const msPerChar = Math.max(4, Math.min(18, Math.floor(900 / length)));
+      let i = 0;
+
+      function step() {
+        if (i < text.length) {
+          cursor.remove();
+          el.textContent += text[i++];
+          el.appendChild(cursor);
+          scrollToBottom();
+          setTimeout(step, msPerChar);
+        } else {
+          cursor.remove();
+          resolve();
+        }
+      }
+      step();
+    });
+  }
+
+  async function sendPromptToAPI(promptText) {
+    const body = { prompt: promptText };
+    const res = await fetch("http://127.0.0.1:8000/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let text = `Server error ${res.status}`;
+      try {
+        const j = await res.json();
+        text = j.detail || JSON.stringify(j);
+      } catch (e) {}
+      throw new Error(text);
+    }
+    return res.json();
+  }
+
+  async function handleSend() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    createBubble(text, "user");
+    const aiBubble = createBubble("", "ai", { scanning: true });
+
+    chatInput.value = "";
+    chatInput.disabled = true;
+
+    try {
+      const data = await sendPromptToAPI(text);
+      const reply =
+        data && typeof data.reply === "string"
+          ? data.reply
+          : String(data.reply || "[no reply]");
+      aiBubble.classList.remove("scanning");
+      await typeText(aiBubble, reply);
+    } catch (err) {
+      console.error("Chat send error:", err);
+      aiBubble.classList.remove("scanning");
+      aiBubble.textContent = "Sorry — something went wrong. Try again.";
+    } finally {
+      chatInput.disabled = false;
+      chatInput.focus();
+    }
+  }
+
+  // ✅ Handle form submit instead of Enter key
+  chatForm.addEventListener("submit", (e) => {
+    e.preventDefault(); // prevents page reload
+    handleSend();
+  });
+
+  chatInput.focus();
+})();
+</script>
+
+
+
+<script>
+// Block all reloads, navigations, and form submissions
+(function() {
+  // Prevent page reload via F5, Ctrl+R, Command+R
+  window.addEventListener("keydown", function(e) {
+    if (
+      e.key === "F5" ||
+      (e.ctrlKey && e.key === "r") ||
+      (e.metaKey && e.key === "r")
+    ) {
+      e.preventDefault();
+      console.log("Page reload blocked!");
+    }
+  });
+
+  // Prevent form submissions from reloading the page
+  document.addEventListener("submit", function(e) {
+    e.preventDefault();
+    console.log("Form submission blocked!");
+  });
+
+  // Prevent any programmatic reload/navigation
+  const originalReload = window.location.reload;
+  window.location.reload = function() {
+    console.log("Reload blocked!");
+  };
+
+  const originalAssign = window.location.assign;
+  window.location.assign = function() {
+    console.log("Navigation blocked!");
+  };
+
+  const originalReplace = window.location.replace;
+  window.location.replace = function() {
+    console.log("Navigation blocked!");
+  };
+
+  // Warn on attempts to leave the page
+  window.addEventListener("beforeunload", function(e) {
+    e.preventDefault();
+    e.returnValue = "";
+    console.log("Unload blocked!");
+  });
+
+})();
+</script>
+
+
+
+
+</body>
+</html>

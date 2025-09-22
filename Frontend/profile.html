@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Profile</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="profile.css" />
+</head>
+ 
+<body>
+  <!-- Back Button -->
+<button id="back-btn" class="back-button" aria-label="Go Back">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#cadcfc" viewBox="0 0 24 24">
+    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+  </svg>
+  <span>Back</span>
+</button>
+
+
+      <div class="vignette"></div>
+  <div class="grid-overlay"></div>
+
+  <main class="profile-container">
+    <section class="profile-photo-section">
+      <input type="file" accept="image/*" id="photo-upload" hidden />
+      <div class="profile-photo-wrapper" tabindex="0" role="button" aria-label="Upload profile photo" title="Click to upload photo">
+        <img src="default-avatar.png" alt="User Profile Photo" id="profile-photo" />
+        <div class="upload-overlay">
+          <svg xmlns="http://www.w3.org/2000/svg" class="upload-icon" fill="#cadcfc" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM12 2l-6 6h4v6h4v-6h4l-6-6z"/></svg>
+          <span>Change Photo</span>
+        </div>
+      </div>
+    </section>
+
+<h1 class="profile-name">
+  <span class="uid-label" id="uid-label" style="display: block; font-weight: 100; color: #8ab6f9; margin-bottom: 6px;">
+    User ID:
+  </span>
+  <span id="profile-uid" class="masked-uid">•••••••••••••••••••••••</span>
+  <button id="toggle-uid-visibility" aria-label="Toggle user ID visibility" title="Show User ID" style="background:none; border:none; cursor:pointer;">
+    <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#cadcfc" viewBox="0 0 24 24">
+      <path d="M12 5c-7 0-9 7-9 7s2 7 9 7 9-7 9-7-2-7-9-7zm0 12c-2.76 0-5-2.24-5-5s2.24-5 5-5
+        5 2.24 5 5-2.24 5-5 5z"/>
+      <circle cx="12" cy="12" r="2.5"/>
+    </svg>
+  </button>
+</h1>
+
+
+<div class="info-group">
+  <label><span class="shuffle-text">Login Status:</span></label>
+  <p><span id="login-status">Checking...</span></p>
+</div>
+
+
+<div class="info-group">
+  <label><span class="shuffle-text">Payment Package:</span></label>
+  <p><span id="payment-package" class="shuffle-text">Basic (Configure Later)</span></p>
+</div>
+
+<div class="info-group">
+  <label><span class="shuffle-text">Credits Used:</span></label>
+  <p><span id="credits-used" class="shuffle-text">0 (Configure Later)</span></p>
+</div>
+
+<div class="cta-group">
+  <button id="payment-cta" class="btn-primary" type="button">Go to Payment Page</button>
+<button id="logout-btn" class="btn-secondary" type="button">Log Out</button>
+</div>
+
+    </section>
+  </main>
+
+  <!-- JS -->
+  <script src="profile.js" type="module"></script>
+
+  
+<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+
+
+  <!-- Your custom JS -->
+  <script src="profile.js" type="module"></script>
+
+  <!-- Init particles -->
+  
+<script type="module">
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { app } from "./firebase.js";
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Elements
+const profileUidSpan = document.getElementById("profile-uid");
+const toggleBtn = document.getElementById("toggle-uid-visibility");
+const eyeIcon = document.getElementById("eye-icon");
+const profilePhoto = document.getElementById("profile-photo");
+const photoUploadInput = document.getElementById("photo-upload");
+const profilePhotoWrapper = document.querySelector(".profile-photo-wrapper");
+
+let isUidVisible = false;
+let actualUid = "";
+
+// Handle Login
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    try {
+      const userDocRef = doc(db, "signup", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      actualUid = userDocSnap.exists() ? (userDocSnap.data().uid || user.uid) : user.uid;
+
+      profileUidSpan.textContent = "•••••••••••••••••••••••";
+
+      // Load photo from Firestore
+      const photoDocRef = doc(db, "photo", actualUid);
+      const photoDocSnap = await getDoc(photoDocRef);
+      if (photoDocSnap.exists() && photoDocSnap.data().photoBase64) {
+        profilePhoto.src = photoDocSnap.data().photoBase64;
+      } else {
+        profilePhoto.src = "default-avatar.png";
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  } else {
+    profileUidSpan.textContent = "Not logged in";
+    toggleBtn.style.display = "none";
+  }
+});
+
+// Toggle UID visibility
+toggleBtn.addEventListener("click", () => {
+  if (!actualUid) return;
+  isUidVisible = !isUidVisible;
+  if (isUidVisible) {
+    profileUidSpan.textContent = actualUid;
+    eyeIcon.style.fill = "#8ab6f9";
+    toggleBtn.title = "Hide User ID";
+  } else {
+    profileUidSpan.textContent = "•••••••••••••••••••••••";
+    eyeIcon.style.fill = "#00246b";
+    toggleBtn.title = "Show User ID";
+  }
+});
+
+// Click profile photo to upload
+profilePhotoWrapper.addEventListener("click", () => {
+  if (actualUid) {
+    photoUploadInput.click();
+  } else {
+    alert("Please log in first.");
+  }
+});
+
+// Convert file to Base64
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result); // result includes "data:image/png;base64,..."
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Upload Base64 photo to Firestore
+photoUploadInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file || !actualUid) return;
+
+  try {
+    const base64String = await fileToBase64(file);
+
+    await setDoc(doc(db, "photo", actualUid), {
+      uid: actualUid,
+      photoBase64: base64String
+    });
+
+    profilePhoto.src = base64String;
+    console.log("Profile photo uploaded successfully as Base64!");
+  } catch (error) {
+    console.error("Error uploading photo:", error);
+  }
+});
+</script>
+
+<script type="module">
+  import { app } from './firebase-config.js';
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            // Get user ID
+            const userId = user.uid;
+
+            // Fetch image URL from Firestore (photo collection)
+            const photoRef = doc(db, "photo", userId);
+            const photoSnap = await getDoc(photoRef);
+
+            if (photoSnap.exists()) {
+                const imageUrl = photoSnap.data().imageUrl; // assuming field name is imageUrl
+                document.getElementById("user-avatar").style.backgroundImage = `url(${imageUrl})`;
+                document.getElementById("user-avatar").style.backgroundSize = "cover";
+                document.getElementById("user-avatar").style.backgroundPosition = "center";
+            } else {
+                console.warn("No profile photo found for this user.");
+            }
+        } catch (error) {
+            console.error("Error fetching user photo:", error);
+        }
+    } else {
+        console.log("No user is signed in.");
+    }
+});
+
+</script>
+
+<script type="module">
+import { app } from "./firebase.js";
+import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+// Handle logout button click
+document.getElementById("logout-btn").addEventListener("click", () => {
+    signOut(auth).then(() => {
+        // Clear stored session data
+        sessionStorage.clear();
+        
+        // Redirect to login page
+        window.location.href = "login.html";
+    }).catch((error) => {
+        console.error("Error signing out:", error);
+    });
+});
+</script>
+
+<script>
+document.getElementById("back-btn").addEventListener("click", () => {
+  window.history.back();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verihuman - Sign Up / Login</title>
+    <link rel="stylesheet" href="sign.css">
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Particles Background -->
+<!-- Particles Background -->
+<div id="particles-js"></div>
+
+<!-- AI Welcome Chat Bubble -->
+<div class="ai-welcome-container" style="opacity: 0;">
+  <div class="ai-chat-bubble">
+    <span id="ai-typing"></span>
+  </div>
+</div>
+
+
+<!-- Auth Container -->
+<div class="auth-container">
+    <div class="auth-box">
+        
+        <!-- Logo -->
+        <img src="Images/vERIHUMAN (6).png" alt="Verihuman Logo" class="logo">
+
+        <!-- Form Title -->
+        <h2 id="form-title">Create Your Account</h2>
+
+        <!-- Form -->
+        <form id="auth-form">
+
+
+            <div class="input-group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#00246b" viewBox="0 0 24 24">
+                    <path d="M4 4h16v16H4z" fill="none"/>
+                    <path d="M4 4l8 8 8-8"/>
+                </svg>
+                <input type="email" placeholder="Email Address" id="email" required>
+            </div>
+
+            <div class="input-group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#00246b" viewBox="0 0 24 24">
+                <path d="M12 2a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 
+                        2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 
+                        0-2-2h-1V7a5 5 0 0 0-5-5zm-3 9V7a3 3 0 1 
+                        1 6 0v4H9z"/>
+                </svg>
+
+                <input type="password" placeholder="Password" id="password" required>
+            </div>
+
+            <div class="input-group signup-only">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#00246b" viewBox="0 0 24 24">
+                <path d="M12 2a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 
+                        2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 
+                        0-2-2h-1V7a5 5 0 0 0-5-5zm-3 9V7a3 3 0 1 
+                        1 6 0v4H9z"/>
+                </svg>
+
+                <input type="password" placeholder="Confirm Password" id="confirm-password">
+            </div>
+
+            <button type="submit" class="main-btn" id="submit-btn">Sign Up</button>
+        </form>
+
+        <!-- Divider -->
+        <div class="divider">or</div>
+
+
+<!-- Google Sign-In -->
+<div id="g_id_onload"
+     data-client_id="104006969787-f79gos7l3j61q9ntml1u6kr5c99bhbuh.apps.googleusercontent.com"
+     data-context="signup"
+     data-ux_mode="popup"
+     data-login_uri="https://mywebsite.com/sign.html"
+     data-callback="handleGoogleSignIn"
+     data-auto_prompt="false">
+</div>
+
+<div class="g_id_signin"
+     data-type="standard"
+     data-shape="rectangular"
+     data-theme="outline"
+     data-text="continue_with"
+     data-size="large"
+     data-logo_alignment="left">
+</div>
+
+
+        <!-- Microsoft Sign-In 
+        <button id="microsoft-login-btn" class="social-btn microsoft" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 512 512">
+                <rect width="256" height="256" fill="#F25022" />
+                <rect x="256" width="256" height="256" fill="#7FBA00" />
+                <rect y="256" width="256" height="256" fill="#00A4EF" />
+                <rect x="256" y="256" width="256" height="256" fill="#FFB900" />
+            </svg>
+            <span>Continue with Microsoft</span>
+        </button>
+        -->
+
+        <!-- Apple Sign-In 
+        <button id="apple-login-btn" class="social-btn apple" type="button">
+            <img src="Images/apple-logo.svg" alt="Apple Logo" class="social-icon">
+            <span>Continue with Apple</span>
+        </button>
+        -->
+
+        <!-- Toggle Link -->
+        <p class="toggle-text">
+            Already have an account? 
+            <span id="toggle-link">Sign In</span>
+        </p>
+    </div>
+</div>
+
+<!-- Popup Container -->
+<div id="auth-popup" class="auth-popup"></div>
+
+
+
+
+    <script src="sign.js"></script>
+    <!-- Load particles.js from a working CDN -->
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+  function handleGoogleSignIn(response) {
+    console.log("Google JWT Token:", response.credential);
+    // Send this token to your backend to verify and log the user in
+  }
+</script>
+
+   
+<script>
+particlesJS("particles-js", {
+    particles: {
+        number: { 
+            value: 200,  // way more particles
+            density: { enable: true, value_area: 800 }
+        },
+        color: { value: "#8ab6f9" },
+        shape: { type: "circle" },
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: {
+            enable: true,
+            distance: 150,
+            color: "#8ab6f9",
+            opacity: 0.3,
+            width: 1
+        },
+        move: {
+            enable: true,
+            speed: 2,
+            direction: "none",
+            random: true,
+            straight: false,
+            out_mode: "out",
+            bounce: false
+        }
+    },
+    interactivity: {
+        detect_on: "canvas",
+        events: {
+            onhover: { enable: true, mode: "repulse" },
+            onclick: { enable: true, mode: "push" },
+            resize: true
+        },
+        modes: {
+            repulse: { distance: 100, duration: 0.4 },
+            push: { particles_nb: 4 }
+        }
+    },
+    retina_detect: true
+});
+
+</script>
+
+<!-- Firebase Auth Scripts -->
+<script type="module" src="firebase.js"></script>
+<script type="module" src="email-auth.js"></script>
+<script type="module" src="google-auth.js"></script>
+
+
+</body>
+</html>
+            
