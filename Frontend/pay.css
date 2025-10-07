@@ -207,34 +207,17 @@ body, html {
 }
 
 
-/* Background Image */
-#bgImage {
+/* Fullscreen Matrix Canvas */
+#matrixCanvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: url("images/bg photo.jpg") no-repeat center center / cover;
   z-index: -2;
-
-  /* Animation */
-  animation: bgZoomHoldOut 2.8s ease forwards;
 }
 
-/* Keyframes */
-@keyframes bgZoomHoldOut {
-  0% {
-    transform: scale(1.2); /* start zoomed in */
-  }
-  70% {
-    transform: scale(1.2); /* hold for ~2s */
-  }
-  100% {
-    transform: scale(1); /* zoom out quickly */
-  }
-}
-
-
+/* Overlay (subtle glow/fade) */
 .overlay {
   position: fixed;
   top: 0;
@@ -243,50 +226,13 @@ body, html {
   height: 100%;
   background: radial-gradient(
     circle at center,
-    rgba(0, 20, 60, 0.4) 0%,
-    rgba(0, 5, 20, 0.9) 80%
+    rgba(0, 36, 107, 0.2) 20%,
+    rgba(0, 0, 20, 0.9) 95%
   );
-  background-size: 200% 200%;
-  animation: pulseGlow 12s ease-in-out infinite;
   z-index: -1;
+  pointer-events: none;
 }
 
-/* Futuristic subtle pulse */
-@keyframes pulseGlow {
-  0% { background-position: 50% 50%; }
-  50% { background-position: 48% 52%; }
-  100% { background-position: 50% 50%; }
-}
-
-.neural-lines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: 
-    repeating-linear-gradient(
-      60deg,
-      rgba(138, 182, 249, 0.08) 0px,
-      rgba(138, 182, 249, 0.08) 1px,
-      transparent 1px,
-      transparent 80px
-    ),
-    repeating-linear-gradient(
-      -60deg,
-      rgba(138, 182, 249, 0.08) 0px,
-      rgba(138, 182, 249, 0.08) 1px,
-      transparent 1px,
-      transparent 80px
-    );
-  animation: moveGrid 30s linear infinite;
-  z-index: -1;
-}
-
-@keyframes moveGrid {
-  0% { background-position: 0 0, 0 0; }
-  100% { background-position: 200px 200px, -200px -200px; }
-}
 
 
 

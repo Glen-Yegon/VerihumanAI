@@ -232,23 +232,17 @@ html, body {
   }
 
 
-#bgVideo {
+/* Fullscreen Matrix Canvas */
+#matrixCanvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;   /* fills screen without distortion */
   z-index: -2;
-
-  /* Futuristic glow */
-  filter: brightness(0.7) contrast(1.2) saturate(1.3)
-          drop-shadow(0 0 10px #00f7ff55)
-          drop-shadow(0 0 20px #ff00ff33);
-          
 }
 
-/* Overlay (dark AI effect) */
+/* Overlay (subtle glow/fade) */
 .overlay {
   position: fixed;
   top: 0;
@@ -257,47 +251,11 @@ html, body {
   height: 100%;
   background: radial-gradient(
     circle at center,
-    rgba(0, 20, 40, 0.4) 0%,
-    rgba(0, 0, 20, 0.85) 90%
+    rgba(0, 36, 107, 0.2) 0%,
+    rgba(0, 0, 20, 0.9) 90%
   );
   z-index: -1;
   pointer-events: none;
-}
-
-
-.neural-lines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* don't block clicks */
-  background-image: 
-    repeating-linear-gradient(
-      60deg,
-      rgba(138, 182, 249, 0.08) 0px,
-      rgba(138, 182, 249, 0.08) 1px,
-      transparent 1px,
-      transparent 80px
-    ),
-    repeating-linear-gradient(
-      -60deg,
-      rgba(202, 220, 252, 0.08) 0px,
-      rgba(202, 220, 252, 0.08) 1px,
-      transparent 1px,
-      transparent 80px
-    );
-  animation: moveGrid 35s linear infinite;
-  z-index: -1; /* behind content and video */
-  mix-blend-mode: screen; /* blends nicely with video */
-  opacity: 0.55; /* subtle glow */
-  filter: drop-shadow(0 0 6px #8ab6f9)
-          drop-shadow(0 0 10px #cadcfc); /* soft neon glow */
-}
-
-@keyframes moveGrid {
-  0% { background-position: 0 0, 0 0; }
-  100% { background-position: 250px 250px, -250px -250px; }
 }
 
 
@@ -640,7 +598,7 @@ html, body {
   height: 100%;
   background: rgba(0, 36, 107, 0.5); /* brand navy overlay */
   backdrop-filter: blur(10px);
-  z-index: 2000;
+  z-index: 99999;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -832,10 +790,6 @@ html, body {
   }
 }
 
-
-
-
-
 #page-transition {
   position: fixed;
   top: 0;
@@ -851,7 +805,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 999999;
 
   /* Start off-screen above */
   transform: translateY(-100%);

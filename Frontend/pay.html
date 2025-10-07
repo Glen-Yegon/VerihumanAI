@@ -90,10 +90,9 @@
 
   <!-- Links -->
   <nav class="menu-links">
-    <a href="#">Home</a>
-    <a href="#">Plans</a>
-    <a href="#">About</a>
-    <a href="#">Contact</a>
+    <a href="index.html">Home</a>
+    <a href="profile.html">Profile</a>
+    <a href="sign.html">Sign Up / Login</a>
   </nav>
 
   <hr class="divider">
@@ -102,22 +101,76 @@
   <div class="menu-brand">Verihuman AI</div>
 </div>
 
+
+<!-- Matrix-style AI Background -->
+<canvas id="matrixCanvas"></canvas>
+<div class="overlay"></div>
+
 <!-- Overlay -->
 <div class="overlay" id="menuOverlay"></div>
 
-
-
-<!-- Background Image -->
-<div id="bgImage"></div>
-
-<!-- Overlay -->
-<div class="overlay"></div>
-
-<div class="neural-lines"></div>
 
   
 
   <!-- Scripts -->
   <script src="pay.js"></script>
+
+<script>
+(function(){
+  const canvas = document.getElementById("matrixCanvas");
+  const ctx = canvas.getContext("2d");
+
+  let width = canvas.width = window.innerWidth;
+  let height = canvas.height = window.innerHeight;
+
+  // Dynamically set font size based on screen width
+  let fontSize = width > 768 ? 24 : 16; // larger on desktop
+  ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
+
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*()';
+  const chars = characters.split('');
+
+  let columns = Math.floor(width / fontSize);
+  let drops = Array(columns).fill(0);
+
+  const colors = ['#cadcfc', '#8ab6f9', '#00246b'];
+
+  function draw() {
+    // Background with fading trail
+    ctx.fillStyle = 'rgba(0, 0, 20, 0.05)';
+    ctx.fillRect(0, 0, width, height);
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+      drops[i]++;
+      if (drops[i] * fontSize > height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+
+  // Responsive
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+
+    fontSize = width > 768 ? 24 : 16; // adjust font size on resize
+    ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
+
+    columns = Math.floor(width / fontSize);
+    drops = Array(columns).fill(0);
+  });
+})();
+</script>
+
+
+
 </body>
 </html>

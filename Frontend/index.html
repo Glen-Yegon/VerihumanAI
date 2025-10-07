@@ -170,8 +170,9 @@
   <div id="chat-container" class="chat-container"></div>
 </section>
 
+
 <!-- Bottom Input Bar wrapped in a form -->
-<form id="chatForm" class="chat-input-container" action="javascript:void(0)">
+<form id="chatForm" class="chat-input-container">
   
   <button class="file-upload-btn" title="Add files" type="button">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#cadcfc" viewBox="0 0 24 24">
@@ -191,15 +192,11 @@
 </form>
 
 
-<!-- Neural Lines Background -->
-<div class="neural-lines"></div>
 
+<!-- Matrix-style AI Background -->
+<canvas id="matrixCanvas"></canvas>
+<div class="overlay"></div>
 
-<!-- Background Video -->
-<video autoplay muted loop playsinline id="bgVideo">
-  <source src="videos/mainvid (2).mp4" type="video/mp4">
-  <!-- Fallback image if video doesn't load -->
-</video>
 
 </main>
 
@@ -319,7 +316,7 @@ loadUserData();
 document.addEventListener("DOMContentLoaded", function () {
   const chatContainer = document.getElementById("chat-container");
   const chatInput = document.getElementById("chatInput");
-  const chatForm = document.getElementById("chatForm");
+  const sendBtn = document.getElementById("sendBtn");
 
   function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -337,7 +334,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const userAvatar = document.getElementById("user-avatar");
       avatarEl.style.backgroundImage =
         (userAvatar && userAvatar.style.backgroundImage) ||
-        "url('default-user.png')";
+        "url('images/vERIHUMAN (8).png')";
     }
 
     const bubble = document.createElement("div");
@@ -357,98 +354,120 @@ document.addEventListener("DOMContentLoaded", function () {
     return bubble;
   }
 
-  function typeText(el, text) {
+async function typeText(el, text) {
+  try {
+    el.textContent = "";
+    const cursor = document.createElement("span");
+    cursor.className = "typing-cursor";
+    el.appendChild(cursor);
+
+    const length = Math.max(1, text.length);
+    const msPerChar = Math.max(4, Math.min(18, Math.floor(900 / length)));
+    let i = 0;
+
     return new Promise((resolve) => {
-      el.textContent = "";
-      const cursor = document.createElement("span");
-      cursor.className = "typing-cursor";
-      el.appendChild(cursor);
-
-      const length = Math.max(1, text.length);
-      const msPerChar = Math.max(4, Math.min(18, Math.floor(900 / length)));
-      let i = 0;
-
       function step() {
-        if (i < text.length) {
-          cursor.remove();
-          el.textContent += text[i++];
-          el.appendChild(cursor);
-          scrollToBottom();
-          setTimeout(step, msPerChar);
-        } else {
+        try {
+          if (i < text.length) {
+            cursor.remove();
+            el.textContent += text[i++];
+            el.appendChild(cursor);
+            scrollToBottom();
+            setTimeout(step, msPerChar);
+          } else {
+            cursor.remove();
+            resolve();
+          }
+        } catch (e) {
+          console.error("typeText error:", e);
           cursor.remove();
           resolve();
         }
       }
       step();
     });
+  } catch (e) {
+    console.error("typeText outer error:", e);
+    return;
   }
+}
+
 
   async function sendPromptToAPI(promptText) {
     const body = { prompt: promptText };
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+const res = await fetch("http://127.0.0.1:8000/api/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+if (!res.ok) {
+  let text = `Server error ${res.status}`;
+  try {
+    const j = await res.json();
+    text = j.detail || JSON.stringify(j);
+  } catch (e) {
+    console.error("Response JSON parse failed:", e);
+  }
+  throw new Error(text);
+}
+return await res.json();
 
-      if (!res.ok) {
-        let text = `Server error ${res.status}`;
-        try {
-          const j = await res.json();
-          text = j.detail || JSON.stringify(j);
-        } catch (e) {
-          console.error("Response JSON parse failed:", e);
-        }
-        throw new Error(text);
-      }
-
-      return await res.json();
     } catch (err) {
       console.error("❌ Fetch error:", err);
       throw err;
     }
   }
 
-  async function handleSend() {
-    const text = chatInput.value.trim();
-    if (!text) return;
+async function handleSend() {
+  const text = chatInput.value.trim();
+  if (!text) return;
 
-    createBubble(text, "user");
-    const aiBubble = createBubble("", "ai", { scanning: true });
+  createBubble(text, "user");
+  const aiBubble = createBubble("", "ai", { scanning: true });
 
-    chatInput.value = "";
-    chatInput.disabled = true;
+  chatInput.value = "";
+  chatInput.disabled = true;
 
-    try {
-      const data = await sendPromptToAPI(text);
-      const reply =
-        data && typeof data.reply === "string"
-          ? data.reply
-          : String(data.reply || "[no reply]");
-      aiBubble.classList.remove("scanning");
-      await typeText(aiBubble, reply);
-    } catch (err) {
-      console.error("❌ Chat send error:", err);
-      aiBubble.classList.remove("scanning");
-      aiBubble.textContent = "Sorry — something went wrong. Try again.";
-    } finally {
-      chatInput.disabled = false;
-      chatInput.focus();
-    }
+  try {
+    const data = await sendPromptToAPI(text);
+    const reply =
+      data && typeof data.reply === "string"
+        ? data.reply
+        : String(data.reply || "[no reply]");
+    aiBubble.classList.remove("scanning");
+    await typeText(aiBubble, reply);
+  } catch (err) {
+    console.error("❌ Chat send error:", err);
+    aiBubble.classList.remove("scanning");
+    aiBubble.textContent = "Sorry — something went wrong. Try again.";
+    // ⚠ prevent reload
+    return false;
+  } finally {
+    chatInput.disabled = false;
+    chatInput.focus();
   }
+}
 
-  // ✅ Prevent page reload
-  chatForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    console.log("📨 Form submit triggered");
-    handleSend();
+
+sendBtn.addEventListener("click", (e) => {
+  e.preventDefault(); // ⚠ stop form submit
+  handleSend();
+});
+
+
+  // 🔑 optional: send on Enter key
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   });
 
   chatInput.focus();
 });
 </script>
+
 
 
 
@@ -490,17 +509,70 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("Navigation blocked!");
   };
 
-  // Warn on attempts to leave the page
-  window.addEventListener("beforeunload", function(e) {
-    e.preventDefault();
-    e.returnValue = "";
-    console.log("Unload blocked!");
-  });
+// window.addEventListener("beforeunload", function(e) {
+//     e.preventDefault();
+//     e.returnValue = "";
+//     console.log("Unload blocked!");
+// });
 
 })();
 </script>
 
 
+<script>
+(function(){
+  const canvas = document.getElementById("matrixCanvas");
+  const ctx = canvas.getContext("2d");
+
+  let width = canvas.width = window.innerWidth;
+  let height = canvas.height = window.innerHeight;
+
+  // Dynamically set font size based on screen width
+  let fontSize = width > 768 ? 24 : 16; // larger on desktop
+  ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
+
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*()';
+  const chars = characters.split('');
+
+  let columns = Math.floor(width / fontSize);
+  let drops = Array(columns).fill(0);
+
+  const colors = ['#cadcfc', '#8ab6f9', '#00246b'];
+
+  function draw() {
+    // Background with fading trail
+    ctx.fillStyle = 'rgba(0, 0, 20, 0.05)';
+    ctx.fillRect(0, 0, width, height);
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+      drops[i]++;
+      if (drops[i] * fontSize > height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+
+  // Responsive
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+
+    fontSize = width > 768 ? 24 : 16; // adjust font size on resize
+    ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
+
+    columns = Math.floor(width / fontSize);
+    drops = Array(columns).fill(0);
+  });
+})();
+</script>
 
 
 </body>
