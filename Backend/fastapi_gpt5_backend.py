@@ -208,46 +208,21 @@ async def chat(req: ChatRequest):
     if not prompt_text:
         raise HTTPException(status_code=400, detail="Empty prompt")
 
-    # ✅ enforce a higher floor for tokens to avoid incomplete responses
-    max_tokens = max(req.max_output_tokens or 512, 512)
-
-    params = {
-        "model": API_MODEL,
-        "input": prompt_text,
-        "max_output_tokens": max_tokens,
-        "reasoning": {"effort": "low"},  # (Optional) reduce reasoning overhead
-    }
-
     try:
-        resp = await asyncio.to_thread(client.responses.create, **params)
+        # ✅ Use Chat Completions API for GPT-3.5
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt_text}],
+            max_tokens=req.max_output_tokens or 512,
+        )
 
-        # ✅ Log full raw response for debugging (in safe folder)
-        try:
-            from pathlib import Path
-            import json
+        # ✅ Corrected way to access model reply
+        reply = response.choices[0].message.content.strip()
 
-            debug_dir = Path("debug_logs")
-            debug_dir.mkdir(exist_ok=True)
-
-            with open(debug_dir / "last_response.json", "w", encoding="utf-8") as f:
-                f.write(json.dumps(resp.model_dump(), indent=2, default=str))
-        except Exception as e:
-            logger.error(f"Could not write debug_logs/last_response.json: {e}")
-
-        # ✅ Try to extract clean text
-        reply = safe_extract_reply(resp)
-
-        # ✅ Extract usage safely
         usage = None
-        if hasattr(resp, "usage"):
-            try:
-                usage = (
-                    resp.usage.model_dump()
-                    if hasattr(resp.usage, "model_dump")
-                    else dict(resp.usage)
-                )
-            except Exception:
-                usage = str(resp.usage)
+        if hasattr(response, "usage"):
+            usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") else dict(response.usage)
 
         return {"reply": reply, "usage": usage}
 
@@ -256,12 +231,8 @@ async def chat(req: ChatRequest):
         err_text = f"{time.ctime()} - OpenAI API request failed: {str(e)}\n{traceback.format_exc()}\n"
         with open("last_error.log", "a", encoding="utf-8") as f:
             f.write(err_text)
-
         logger.error(err_text)
-        raise HTTPException(
-            status_code=502,
-            detail=f"OpenAI error: {str(e)} (see last_error.log for details)",
-        )
+        raise HTTPException(status_code=502, detail=f"OpenAI error: {str(e)}")
 
 
 

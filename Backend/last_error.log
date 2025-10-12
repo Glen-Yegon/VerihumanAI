@@ -61,3 +61,34 @@ Traceback (most recent call last):
     raise self._make_status_error_from_response(err.response) from None
 openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************nykA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
 
+Mon Oct 13 00:50:25 2025 - OpenAI API request failed: Error code: 404 - {'error': {'message': 'This is not a chat model and thus not supported in the v1/chat/completions endpoint. Did you mean to use v1/completions?', 'type': 'invalid_request_error', 'param': 'model', 'code': None}}
+Traceback (most recent call last):
+  File "C:\Users\yegon\Documents\Pixel Pulse\veri_html\Backend\fastapi_gpt5_backend.py", line 214, in chat
+    resp = await asyncio.to_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yegon\AppData\Local\Programs\Python\Python312\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yegon\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yegon\Documents\Pixel Pulse\veri_html\Backend\venv\Lib\site-packages\openai\_utils\_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yegon\Documents\Pixel Pulse\veri_html\Backend\venv\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1147, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\yegon\Documents\Pixel Pulse\veri_html\Backend\venv\Lib\site-packages\openai\_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yegon\Documents\Pixel Pulse\veri_html\Backend\venv\Lib\site-packages\openai\_base_client.py", line 1047, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.NotFoundError: Error code: 404 - {'error': {'message': 'This is not a chat model and thus not supported in the v1/chat/completions endpoint. Did you mean to use v1/completions?', 'type': 'invalid_request_error', 'param': 'model', 'code': None}}
+
+Mon Oct 13 00:54:13 2025 - OpenAI API request failed: 'ChatCompletionMessage' object is not subscriptable
+Traceback (most recent call last):
+  File "C:\Users\yegon\Documents\Pixel Pulse\veri_html\Backend\fastapi_gpt5_backend.py", line 221, in chat
+    reply = response.choices[0].message["content"].strip()
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+TypeError: 'ChatCompletionMessage' object is not subscriptable
+

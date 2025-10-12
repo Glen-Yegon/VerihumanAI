@@ -21,22 +21,23 @@
     <!-- Logo -->
     <img src="Images/vERIHUMAN (6).png" alt="Verihuman Logo" class="logo">
 
-    <!-- New Chat Icon -->
-    <div class="icon-btn" title="New Chat">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
-        <path d="M12 5v14m-7-7h14" stroke="black" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span class="icon-label">New Chat</span>
-    </div>
+<!-- Desktop New Chat Icon -->
+<div class="icon-btn" id="newChatBtn" title="New Chat">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
+    <path d="M12 5v14m-7-7h14" stroke="black" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <span class="icon-label">New Chat</span>
+</div>
 
-    <!-- History Icon -->
-    <div class="icon-btn" title="History">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
-        <path d="M12 8v5l3 3" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="12" cy="12" r="9" stroke="black" stroke-width="2" fill="none"/>
-      </svg>
-      <span class="icon-label">History</span>
-    </div>
+
+<!-- History Icon -->
+<div class="icon-btn" id="historyBtn" title="History">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
+    <path d="M12 8v5l3 3" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="12" cy="12" r="9" stroke="black" stroke-width="2" fill="none"/>
+  </svg>
+  <span class="icon-label">History</span>
+</div>
 
     <!-- Search Icon -->
     <div class="icon-btn" title="Search">
@@ -57,6 +58,10 @@
   <div class="sidebar-middle">
     <h1 class="brand-name">VERIHUMAN</h1>
   </div>
+
+  <!-- Chat History List -->
+  <div id="chatHistoryList" class="chat-history-list"></div>
+
 
 <!-- Sidebar Bottom -->
 <div class="sidebar-bottom">
@@ -142,12 +147,12 @@
         <!-- Mobile Logo -->
         <img src="Images/vERIHUMAN (6).png" alt="Verihuman Logo" class="mobile-logo">
 
-        <!-- Mobile New Chat Icon -->
-        <div class="icon-btn" title="New Chat">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
-                <path d="M12 5v14m-7-7h14" stroke="white" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-        </div>
+       <!-- Mobile New Chat Icon -->
+<div class="icon-btn" id="newChatBtnMobile" title="New Chat">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
+    <path d="M12 5v14m-7-7h14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+</div>
     </header>
     
 <main style="position: relative; width: 100vw; height: 100vh; ">
@@ -198,6 +203,7 @@
 <div class="overlay"></div>
 
 
+
 </main>
 
 
@@ -207,9 +213,23 @@
     <img src="images/vERIHUMAN (6).png" alt="Verihuman Logo">
   </div>
 </div>
+
+
+<!-- Chat History Modal -->
+<div id="chatHistoryModal" class="history-modal">
+  <div class="history-modal-content">
+    <button id="closeHistoryBtn" class="history-close-btn">&times;</button>
+    <h2>Chat History</h2>
+    <div id="chatHistoryListModal" class="history-modal-list"></div>
+  </div>
+</div>
+
+
+
+
   
 
-    <script src="scripts.js"></script>
+    <script src="scripts.js" type="module"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
     <script>
@@ -228,6 +248,7 @@
   }
 };
     </script>
+
 
 
 
@@ -312,11 +333,18 @@ loadUserData();
 </script>
 
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
+<script type="module">
+  import { saveChatToHistory, getLatestChat, saveFullChatSession } from "./firebase-history.js";
+
+  // Get elements
   const chatContainer = document.getElementById("chat-container");
   const chatInput = document.getElementById("chatInput");
   const sendBtn = document.getElementById("sendBtn");
+  const newChatBtn = document.getElementById("newChatBtn");
+  const newChatBtnMobile = document.getElementById("newChatBtnMobile");
+
+  // Local store of current conversation
+  let currentChatMessages = [];
 
   function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -354,8 +382,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return bubble;
   }
 
-async function typeText(el, text) {
-  try {
+  async function typeText(el, text) {
     el.textContent = "";
     const cursor = document.createElement("span");
     cursor.className = "typing-cursor";
@@ -364,66 +391,67 @@ async function typeText(el, text) {
     const length = Math.max(1, text.length);
     const msPerChar = Math.max(4, Math.min(18, Math.floor(900 / length)));
     let i = 0;
-
     return new Promise((resolve) => {
       function step() {
-        try {
-          if (i < text.length) {
-            cursor.remove();
-            el.textContent += text[i++];
-            el.appendChild(cursor);
-            scrollToBottom();
-            setTimeout(step, msPerChar);
-          } else {
-            cursor.remove();
-            resolve();
-          }
-        } catch (e) {
-          console.error("typeText error:", e);
+        if (i < text.length) {
+          cursor.remove();
+          el.textContent += text[i++];
+          el.appendChild(cursor);
+          scrollToBottom();
+          setTimeout(step, msPerChar);
+        } else {
           cursor.remove();
           resolve();
         }
       }
       step();
     });
-  } catch (e) {
-    console.error("typeText outer error:", e);
-    return;
   }
-}
 
+  // Add message to local memory
+  function addMessage(sender, text) {
+    currentChatMessages.push({
+      sender,
+      text,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   async function sendPromptToAPI(promptText) {
     const body = { prompt: promptText };
     try {
-const res = await fetch("http://127.0.0.1:8000/api/chat", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(body),
-});
-if (!res.ok) {
-  let text = `Server error ${res.status}`;
-  try {
-    const j = await res.json();
-    text = j.detail || JSON.stringify(j);
-  } catch (e) {
-    console.error("Response JSON parse failed:", e);
-  }
-  throw new Error(text);
-}
-return await res.json();
-
+      const res = await fetch("http://127.0.0.1:8000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        let text = `Server error ${res.status}`;
+        try {
+          const j = await res.json();
+          text = j.detail || JSON.stringify(j);
+        } catch (e) {
+          console.error("Response JSON parse failed:", e);
+        }
+        throw new Error(text);
+      }
+      return await res.json();
     } catch (err) {
       console.error("❌ Fetch error:", err);
       throw err;
     }
   }
 
-async function handleSend() {
+  // ------------------------
+  // Handle send button click
+  // ------------------------
+  async function handleSend() {
   const text = chatInput.value.trim();
   if (!text) return;
 
   createBubble(text, "user");
+  addMessage("user", text);
+
   const aiBubble = createBubble("", "ai", { scanning: true });
 
   chatInput.value = "";
@@ -435,14 +463,28 @@ async function handleSend() {
       data && typeof data.reply === "string"
         ? data.reply
         : String(data.reply || "[no reply]");
+
     aiBubble.classList.remove("scanning");
     await typeText(aiBubble, reply);
+    addMessage("ai", reply);
+
+    // ✅ Save this exchange to history (new or existing conversation)
+    const userUID = sessionStorage.getItem("userUID");
+    if (userUID) {
+      // if it's a new conversation, force creation of a new Firestore doc
+      await saveChatToHistory(userUID, text, reply, isNewConversation);
+      // reset the flag after the first save
+      if (currentChatId) {
+  await loadChatIntoContainer(currentChatId); // refresh the chat in UI
+}
+
+      isNewConversation = false;
+    }
+
   } catch (err) {
     console.error("❌ Chat send error:", err);
     aiBubble.classList.remove("scanning");
     aiBubble.textContent = "Sorry — something went wrong. Try again.";
-    // ⚠ prevent reload
-    return false;
   } finally {
     chatInput.disabled = false;
     chatInput.focus();
@@ -450,13 +492,11 @@ async function handleSend() {
 }
 
 
-sendBtn.addEventListener("click", (e) => {
-  e.preventDefault(); // ⚠ stop form submit
-  handleSend();
-});
+  sendBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    handleSend();
+  });
 
-
-  // 🔑 optional: send on Enter key
   chatInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -464,9 +504,76 @@ sendBtn.addEventListener("click", (e) => {
     }
   });
 
-  chatInput.focus();
-});
+  // ------------------------
+  // Load previous chat on start
+  // ------------------------
+  async function init() {
+    const userUID = sessionStorage.getItem("userUID");
+    if (userUID) {
+      try {
+        const latestMessages = await getLatestChat(userUID);
+        if (Array.isArray(latestMessages) && latestMessages.length) {
+          latestMessages.forEach((m) => {
+            createBubble(m.text, m.sender === "ai" ? "ai" : "user");
+            addMessage(m.sender, m.text);
+          });
+        }
+      } catch (err) {
+        console.warn("Could not load latest chat:", err);
+      }
+    }
+
+    chatInput.focus();
+  }
+
+  // ------------------------
+  // New Chat button logic
+  // ------------------------
+
+  let isNewConversation = false;
+
+ async function startNewChat() {
+  const userUID = sessionStorage.getItem("userUID");
+
+  if (userUID && currentChatMessages.length > 0) {
+    await saveFullChatSession(userUID, currentChatMessages);
+    console.log("✅ Old conversation saved before starting new chat");
+  }
+
+  chatContainer.innerHTML = "";
+  currentChatMessages = [];
+  isNewConversation = true; // 🔥 Mark next chat as new
+
+  const msg = document.createElement("div");
+  msg.className = "new-chat-banner";
+  msg.textContent = "✨ New Chat Started";
+  msg.style.textAlign = "center";
+  msg.style.opacity = "0.6";
+  msg.style.margin = "10px 0";
+  chatContainer.appendChild(msg);
+  scrollToBottom();
+
+  console.log("🆕 New chat started");
+}
+
+
+  // Event listeners for new chat buttons
+  newChatBtn?.addEventListener("click", startNewChat);
+  newChatBtnMobile?.addEventListener("click", startNewChat);
+
+
+  // make UI helpers globally accessible to other scripts
+window.createBubble = createBubble;
+window.addMessage = addMessage;
+window.scrollToBottom = scrollToBottom;
+
+
+  // Start app
+  init();
+
 </script>
+
+
 
 
 
@@ -508,12 +615,6 @@ sendBtn.addEventListener("click", (e) => {
   window.location.replace = function() {
     console.log("Navigation blocked!");
   };
-
-// window.addEventListener("beforeunload", function(e) {
-//     e.preventDefault();
-//     e.returnValue = "";
-//     console.log("Unload blocked!");
-// });
 
 })();
 </script>

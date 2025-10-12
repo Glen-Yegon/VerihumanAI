@@ -34,6 +34,7 @@ html, body {
   height: 100vh;
   background-color: var(--color-dark);
   display: flex;
+
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
@@ -41,7 +42,7 @@ html, body {
   box-shadow: 2px 0 15px rgba(0,0,0,0.2);
   transition: width 0.35s ease;
   overflow: hidden;
-  z-index: 1000;
+  z-index: 99999;
 }
 
 .icon-btn {
@@ -836,4 +837,204 @@ html, body {
   to {
     opacity: 1;
   }
+
+}
+
+
+
+/* Chat History Container */
+.chat-history-list {
+  margin-top: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  display: none; /* Hidden by default until sidebar expands */
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0 10px;
+  transition: all 0.4s ease-in-out;
+  border-radius: 12px;
+}
+
+/* Scrollbar styling */
+.chat-history-list::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-history-list::-webkit-scrollbar-thumb {
+  background-color: #8ab6f9;
+  border-radius: 10px;
+}
+.chat-history-list::-webkit-scrollbar-thumb:hover {
+  background-color: #cadcfc;
+}
+
+/* Chat Item */
+.chat-item {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(138, 182, 249, 0.3);
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #cadcfc;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 0 6px rgba(0, 36, 107, 0.2);
+}
+
+/* Hover Effect */
+.chat-item:hover {
+  background: rgba(138, 182, 249, 0.15);
+  border-color: #8ab6f9;
+  transform: translateX(4px);
+  box-shadow: 0 0 10px rgba(138, 182, 249, 0.3);
+}
+
+/* Active Chat Item */
+.chat-item.active {
+  background: linear-gradient(90deg, #00246b, #8ab6f9);
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 0 12px rgba(138, 182, 249, 0.5);
+  transform: scale(1.03);
+}
+
+/* Glow pulse animation for active item */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(138, 182, 249, 0.6); }
+  50% { box-shadow: 0 0 14px rgba(138, 182, 249, 1); }
+}
+
+.chat-item.active {
+  animation: glowPulse 2s infinite ease-in-out;
+}
+/* ============================= */
+/*   HISTORY MODAL STYLING       */
+/* ============================= */
+
+.history-modal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(5, 12, 28, 0.85); /* slightly translucent dark */
+  backdrop-filter: blur(8px);
+  display: none; /* hidden by default */
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px;
+  z-index: 9999;
+  overflow-y: auto;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Desktop view (cover 30% width, centered) */
+@media (min-width: 768px) {
+  .history-modal {
+    width: 30%;
+    height: 100vh;
+    right: 0;
+    top: 0;
+    border-radius: 12px 0 0 12px;
+    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.4);
+    background: rgba(5, 12, 28, 0.75);
+    margin-left: auto;
+  }
+}
+
+.history-modal.active {
+  display: flex; /* show it when active */
+}
+
+
+/* Smooth fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ============================= */
+/*   CLOSE BUTTON STYLING        */
+/* ============================= */
+
+.history-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #cadcfc;
+  font-size: 1.4rem;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-modal h2{
+  color: #cadcfc;
+}
+
+.history-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: rotate(90deg);
+}
+
+/* ============================= */
+/*   HISTORY CONTENT LIST         */
+/* ============================= */
+
+.history-modal-content {
+  width: 100%;
+  max-width: 600px;
+  margin-top: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  overflow-y: auto;
+}
+
+/* Each chat preview inside the modal */
+.history-modal-item {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(138, 182, 249, 0.3);
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #cadcfc;
+  margin-bottom: 5px;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  box-shadow: 0 0 6px rgba(0, 36, 107, 0.25);
+}
+
+.history-modal-item:hover {
+  background: rgba(138, 182, 249, 0.15);
+  border-color: #8ab6f9;
+  transform: translateY(-2px);
+  box-shadow: 0 0 10px rgba(138, 182, 249, 0.3);
+}
+
+.history-modal-item.active {
+  background: linear-gradient(90deg, #00246b, #8ab6f9);
+  color: white;
+  font-weight: 600;
+  transform: scale(1.03);
+  box-shadow: 0 0 12px rgba(138, 182, 249, 0.5);
+  animation: glowPulse 2s infinite ease-in-out;
+}
+
+/* Reuse the same glow animation but scoped */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(138, 182, 249, 0.6); }
+  50% { box-shadow: 0 0 14px rgba(138, 182, 249, 1); }
 }

@@ -1,3 +1,6 @@
+import { getAllChats, getChatById } from "./firebase-history.js";
+
+
 window.addEventListener("DOMContentLoaded", () => {
     // Animate sidebar for desktop
     if (window.innerWidth > 768) {
@@ -213,43 +216,162 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-const sidebar = document.getElementById("sidebar");
-const sidebarToggle = document.getElementById("sidebarToggle");
-const closeSidebar = document.getElementById("closeSidebar");
-const menuToggle = document.querySelector(".menu-toggle");
+document.addEventListener("DOMContentLoaded", () => {
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  const closeSidebar = document.getElementById("closeSidebar");
+  const menuToggle = document.querySelector(".menu-toggle");
+  const chatHistoryList = document.getElementById("chatHistoryList");
+  const chatContainer = document.getElementById("chat-container");
 
-// Desktop expand/collapse
-sidebarToggle.addEventListener("click", (e) => {
-  e.stopPropagation();
-  sidebar.classList.toggle("expanded");
-  sidebarToggle.querySelector(".toggle-symbol").textContent =
-    sidebar.classList.contains("expanded") ? "<" : ">";
-});
+  // These globals let us talk to scripts.js logic
+  window.currentChatId = null;
+  window.currentChatMessages = [];
+  window.isNewConversation = false;
 
-// Mobile: open sidebar with hamburger menu
-menuToggle.addEventListener("click", (e) => {
-  e.stopPropagation();
-  sidebar.classList.add("expanded");
-});
-
-// Close button
-closeSidebar.addEventListener("click", () => {
-  sidebar.classList.remove("expanded");
-  sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
-});
-
-// Close on outside click
-document.addEventListener("click", (e) => {
-  if (
-    sidebar.classList.contains("expanded") &&
-    !sidebar.contains(e.target) &&
-    e.target !== sidebarToggle &&
-    e.target !== menuToggle
-  ) {
-    sidebar.classList.remove("expanded");
-    sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
+  if (!chatHistoryList || !chatContainer) {
+    console.error("❌ Missing sidebar or chat container!");
+    return;
   }
+
+  // === Sidebar Toggle Logic ===
+  sidebarToggle?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sidebar.classList.toggle("expanded");
+    sidebarToggle.querySelector(".toggle-symbol").textContent =
+      sidebar.classList.contains("expanded") ? "<" : ">";
+    chatHistoryList.style.display = sidebar.classList.contains("expanded")
+      ? "flex"
+      : "none";
+  });
+
+  menuToggle?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sidebar.classList.add("expanded");
+    chatHistoryList.style.display = "flex";
+  });
+
+  closeSidebar?.addEventListener("click", () => {
+    sidebar.classList.remove("expanded");
+    chatHistoryList.style.display = "none";
+    sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      sidebar.classList.contains("expanded") &&
+      !sidebar.contains(e.target) &&
+      e.target !== sidebarToggle &&
+      e.target !== menuToggle
+    ) {
+      sidebar.classList.remove("expanded");
+      chatHistoryList.style.display = "none";
+      sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
+    }
+  });
+
+  // === Load chat history from Firestore ===
+  async function loadChatHistory() {
+    const userUID = sessionStorage.getItem("userUID");
+    if (!userUID) return;
+
+    const chats = await getAllChats(userUID); // 👈 from firebase-history.js
+    chatHistoryList.innerHTML = "";
+
+    if (!chats || chats.length === 0) {
+      chatHistoryList.innerHTML =
+        "<p style='padding:10px;color:gray;'>No conversations yet</p>";
+      return;
+    }
+
+    chats.forEach((chat) => {
+      const div = document.createElement("div");
+      div.classList.add("chat-item");
+      div.dataset.chatId = chat.id;
+      div.textContent = chat.title || "Untitled Chat";
+
+      if (chat.id === window.currentChatId) div.classList.add("active");
+
+div.dataset.id = chat.id;
+div.addEventListener("click", () => loadChatIntoContainer(chat.id));
+
+
+      chatHistoryList.appendChild(div);
+    });
+  }
+
+  async function loadChatIntoContainer(chatId) {
+  const userUID = sessionStorage.getItem("userUID");
+  if (!userUID) return console.error("❌ No userUID found");
+
+  const chatData = await getChatById(userUID, chatId);
+  if (!chatData) return;
+
+ const chatContainer = document.getElementById("chat-container");
+
+  if (!chatContainer) return console.error("❌ chatContainer not found");
+
+  chatContainer.innerHTML = ""; // clear old content
+
+  chatData.messages.forEach((msg) => {
+    // Create bubbles like in your handleSend()
+    createBubble(msg.content, msg.role === "user" ? "user" : "ai");
+  });
+
+  // highlight active chat
+  document.querySelectorAll(".chat-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.id === chatId);
+  });
+
+  // update global currentChatId
+  currentChatId = chatId;
+}
+
+
+  // === Load a specific chat into the chat container ===
+  async function loadChat(chat) {
+    if (!chatContainer) return;
+
+    window.currentChatId = chat.id;
+    window.isNewConversation = false; // this is an existing one
+    window.currentChatMessages = chat.messages || [];
+
+    // 🧠 Move this chat to the top (like most recent)
+    const chatItem = Array.from(chatHistoryList.children).find(
+      (el) => el.dataset.chatId === chat.id
+    );
+    if (chatItem) {
+      chatItem.classList.add("active");
+      chatHistoryList.prepend(chatItem);
+    }
+
+    // Clear previous chat bubbles
+    chatContainer.innerHTML = "";
+
+    // Load all previous messages
+    chat.messages.forEach((msg) => {
+      createBubble(msg.text, msg.sender === "ai" ? "ai" : "user");
+    });
+
+    // Highlight active
+    document.querySelectorAll(".chat-item").forEach((item) =>
+      item.classList.remove("active")
+    );
+    chatItem?.classList.add("active");
+
+    // Scroll to bottom
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    console.log(`📂 Loaded chat: ${chat.title || chat.id}`);
+  }
+
+  // Initial load
+  loadChatHistory();
+
+  // Optional: Refresh chat list automatically when a new chat starts
+  window.refreshChatHistory = loadChatHistory;
 });
+
 
 
 
@@ -317,3 +439,76 @@ chatInput.addEventListener("keydown", (e) => {
   });
 
   
+const historyBtn = document.getElementById('historyBtn');
+const chatHistoryModal = document.getElementById('chatHistoryModal');
+const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+const chatHistoryListModal = document.getElementById('chatHistoryListModal');
+
+if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
+  // Open Modal
+  historyBtn.addEventListener('click', async () => {
+    chatHistoryModal.classList.add('active');
+
+    // Clear old list before refetching
+    chatHistoryListModal.innerHTML = "<p style='color:gray;'>Loading...</p>";
+
+    // Fetch user UID
+    const userUID = sessionStorage.getItem('userUID');
+    if (!userUID) {
+      chatHistoryListModal.innerHTML = "<p style='color:red;'>User not found.</p>";
+      return;
+    }
+
+    try {
+      // 🔥 Fetch chat history dynamically from Firestore
+      const chats = await getAllChats(userUID);
+      chatHistoryListModal.innerHTML = '';
+
+      if (!chats || chats.length === 0) {
+        chatHistoryListModal.innerHTML = "<p style='color:gray;'>No conversations yet.</p>";
+        return;
+      }
+
+      // Create chat items for modal
+      chats.forEach(chat => {
+        const div = document.createElement('div');
+        div.classList.add('history-modal-item'); // ✅ unique to modal (no conflict)
+        div.textContent = chat.title || 'Untitled Chat';
+        div.dataset.id = chat.id;
+
+        // Highlight currently open chat (optional)
+        const currentChatId = sessionStorage.getItem('currentChatId');
+        if (chat.id === currentChatId) div.classList.add('active');
+
+        div.addEventListener('click', async () => {
+          await loadChatIntoContainer(chat.id);
+          sessionStorage.setItem('currentChatId', chat.id);
+
+          // Visually mark it active
+          document.querySelectorAll('.history-modal-item').forEach(item => item.classList.remove('active'));
+          div.classList.add('active');
+
+          // Close modal after selection (especially for mobile)
+          chatHistoryModal.classList.remove('active');
+        });
+
+        chatHistoryListModal.appendChild(div);
+      });
+    } catch (err) {
+      console.error('❌ Error loading chat history:', err);
+      chatHistoryListModal.innerHTML = "<p style='color:red;'>Failed to load chats.</p>";
+    }
+  });
+
+  // Close Modal (button)
+  closeHistoryBtn.addEventListener('click', () => {
+    chatHistoryModal.classList.remove('active');
+  });
+
+  // Close Modal (click outside content)
+  chatHistoryModal.addEventListener('click', (e) => {
+    if (e.target === chatHistoryModal) {
+      chatHistoryModal.classList.remove('active');
+    }
+  });
+}
