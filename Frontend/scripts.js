@@ -300,70 +300,93 @@ div.addEventListener("click", () => loadChatIntoContainer(chat.id));
     });
   }
 
-  async function loadChatIntoContainer(chatId) {
+// if using module imports:
+// import { getChatById } from './firebase-history.js';
+// import { createBubble } from './ui.js';
+
+async function loadChatIntoContainer(chatId) {
   const userUID = sessionStorage.getItem("userUID");
-  if (!userUID) return console.error("❌ No userUID found");
+  if (!userUID) {
+    console.error("❌ No userUID found");
+    return;
+  }
 
-  const chatData = await getChatById(userUID, chatId);
-  if (!chatData) return;
+  // Update URL (shareable) without reloading
+  const newUrl = `${window.location.origin}${window.location.pathname}?chat=${encodeURIComponent(chatId)}`;
+  window.history.pushState({ chatId }, "", newUrl);
 
- const chatContainer = document.getElementById("chat-container");
+  // Fetch chat data
+  let chatData;
+  try {
+    chatData = await getChatById(userUID, chatId);
+  } catch (err) {
+    console.error("Error fetching chat:", err);
+    return;
+  }
+  if (!chatData) {
+    console.warn("Chat not found:", chatId);
+    return;
+  }
 
-  if (!chatContainer) return console.error("❌ chatContainer not found");
+  const chatContainer = document.getElementById("chat-container");
+  if (!chatContainer) {
+    console.error("❌ chat-container element not found");
+    return;
+  }
 
-  chatContainer.innerHTML = ""; // clear old content
+  // Clear existing UI and local memory (if using)
+  chatContainer.innerHTML = "";
+  // if you keep currentChatMessages globally, set it:
+  if (window.currentChatMessages && Array.isArray(window.currentChatMessages)) {
+    window.currentChatMessages.length = 0;
+  } else {
+    window.currentChatMessages = [];
+  }
 
+  // Render messages
   chatData.messages.forEach((msg) => {
-    // Create bubbles like in your handleSend()
-    createBubble(msg.content, msg.role === "user" ? "user" : "ai");
+    // if createBubble is global:
+    if (typeof window.createBubble === "function") {
+      window.createBubble(msg.content, msg.role === "user" ? "user" : "ai");
+    } else if (typeof createBubble === "function") {
+      createBubble(msg.content, msg.role === "user" ? "user" : "ai");
+    } else {
+      // fallback simple rendering to avoid crash
+      const p = document.createElement("div");
+      p.textContent = `${msg.role}: ${msg.content}`;
+      chatContainer.appendChild(p);
+    }
+
+    // keep local copy
+    window.currentChatMessages.push({
+      sender: msg.role === "user" ? "user" : "ai",
+      text: msg.content,
+      timestamp: new Date().toISOString(),
+    });
   });
 
-  // highlight active chat
-  document.querySelectorAll(".chat-item").forEach((item) => {
-    item.classList.toggle("active", item.dataset.id === chatId);
-  });
+  // store current chatID in memory for later saves
+  window.currentChatId = chatId;
 
-  // update global currentChatId
-  currentChatId = chatId;
+  // scroll to bottom
+  chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 
-  // === Load a specific chat into the chat container ===
-  async function loadChat(chat) {
-    if (!chatContainer) return;
 
-    window.currentChatId = chat.id;
-    window.isNewConversation = false; // this is an existing one
-    window.currentChatMessages = chat.messages || [];
+window.addEventListener("DOMContentLoaded", async () => {
+  const params = new URLSearchParams(window.location.search);
+  const chatId = params.get("chat");
 
-    // 🧠 Move this chat to the top (like most recent)
-    const chatItem = Array.from(chatHistoryList.children).find(
-      (el) => el.dataset.chatId === chat.id
-    );
-    if (chatItem) {
-      chatItem.classList.add("active");
-      chatHistoryList.prepend(chatItem);
-    }
-
-    // Clear previous chat bubbles
-    chatContainer.innerHTML = "";
-
-    // Load all previous messages
-    chat.messages.forEach((msg) => {
-      createBubble(msg.text, msg.sender === "ai" ? "ai" : "user");
-    });
-
-    // Highlight active
-    document.querySelectorAll(".chat-item").forEach((item) =>
-      item.classList.remove("active")
-    );
-    chatItem?.classList.add("active");
-
-    // Scroll to bottom
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    console.log(`📂 Loaded chat: ${chat.title || chat.id}`);
+  if (chatId) {
+    console.log("🔗 Chat link detected:", chatId);
+    await loadChatIntoContainer(chatId);
   }
+});
+
+
+
+
 
   // Initial load
   loadChatHistory();
@@ -512,3 +535,4 @@ if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
     }
   });
 }
+

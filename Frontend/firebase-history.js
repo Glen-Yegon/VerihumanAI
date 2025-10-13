@@ -19,11 +19,11 @@ const db = getFirestore(app);
 
 /**
  * Save or update a user's chat history in Firestore.
- * @param {string} userId - The UID of the logged-in user
- * @param {string} userMessage - The message sent by the user
- * @param {string} aiReply - The AI's response
+ * @param {string} userId
+ * @param {string} userMessage
+ * @param {string} aiReply
+ * @param {boolean} forceNew - if true, create a new chat document instead of appending
  */
-
 export async function saveChatToHistory(userId, userMessage, aiReply, forceNew = false) {
   try {
     if (!userId) {
@@ -32,10 +32,9 @@ export async function saveChatToHistory(userId, userMessage, aiReply, forceNew =
     }
 
     const historyRef = collection(db, "history", userId, "chats");
-    const title = userMessage.length > 40 ? userMessage.substring(0, 40) + "..." : userMessage;
+    const title = (userMessage || "").length > 40 ? userMessage.substring(0, 40) + "..." : userMessage;
 
     if (forceNew) {
-      // 🆕 Always create a fresh document
       await addDoc(historyRef, {
         title,
         messages: [
@@ -49,22 +48,22 @@ export async function saveChatToHistory(userId, userMessage, aiReply, forceNew =
       return;
     }
 
-    // Otherwise continue last chat as usual
     const q = query(historyRef, orderBy("createdAt", "desc"), limit(1));
     const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
       const lastChat = snapshot.docs[0];
+      const lastData = lastChat.data() || {};
+      const oldMessages = Array.isArray(lastData.messages) ? lastData.messages : [];
       await updateDoc(doc(historyRef, lastChat.id), {
         messages: [
-          ...lastChat.data().messages,
+          ...oldMessages,
           { sender: "user", text: userMessage, timestamp: new Date().toISOString() },
           { sender: "ai", text: aiReply, timestamp: new Date().toISOString() },
         ],
         updatedAt: serverTimestamp(),
       });
     } else {
-      // No previous chat — create one
       await addDoc(historyRef, {
         title,
         messages: [
@@ -82,12 +81,10 @@ export async function saveChatToHistory(userId, userMessage, aiReply, forceNew =
   }
 }
 
-
-
 /**
- * Fetch the latest conversation for a user.
- * @param {string} userId - The UID of the logged-in user
- * @returns {Array|null} The latest chat messages or null if none
+ * Get latest conversation messages for a user (most recent chat doc)
+ * @param {string} userId
+ * @returns {Array|null}
  */
 export async function getLatestChat(userId) {
   try {
@@ -99,7 +96,7 @@ export async function getLatestChat(userId) {
 
     if (!snapshot.empty) {
       const lastChat = snapshot.docs[0].data();
-      return lastChat.messages;
+      return lastChat.messages || [];
     }
 
     return null;
@@ -109,13 +106,13 @@ export async function getLatestChat(userId) {
   }
 }
 
-
-// 🧠 Function to save full chat session (when "New Chat" is clicked)
+/**
+ * Save full chat session (when starting new chat or saving explicitly)
+ */
 export async function saveFullChatSession(uid, messages) {
   if (!uid || !messages || messages.length === 0) return;
 
   try {
-    // Create a short auto-title (based on first user message)
     const firstUserMessage = messages.find(m => m.sender === "user")?.text || "Conversation";
     const title = firstUserMessage.length > 30 ? firstUserMessage.slice(0, 30) + "..." : firstUserMessage;
 
@@ -132,8 +129,9 @@ export async function saveFullChatSession(uid, messages) {
   }
 }
 
-
-
+/**
+ * Return list of chat documents for a user
+ */
 export async function getAllChats(userId) {
   try {
     if (!userId) {
@@ -141,18 +139,11 @@ export async function getAllChats(userId) {
       return [];
     }
 
-    console.log("📜 Fetching chats for user:", userId);
-
     const historyRef = collection(db, "history", userId, "chats");
     const q = query(historyRef, orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
 
-    const chats = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    console.log("✅ Fetched chats:", chats);
+    const chats = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     return chats;
   } catch (error) {
     console.error("🔥 Error fetching chats:", error);
@@ -160,7 +151,9 @@ export async function getAllChats(userId) {
   }
 }
 
-
+/**
+ * Get single chat document and normalize messages for UI
+ */
 export async function getChatById(userUID, chatId) {
   if (!userUID || !chatId) {
     console.error("❌ Missing userUID or chatId");
@@ -168,7 +161,6 @@ export async function getChatById(userUID, chatId) {
   }
 
   try {
-    // ✅ Correct Firestore path based on your structure
     const chatRef = doc(db, "history", userUID, "chats", chatId);
     const chatSnap = await getDoc(chatRef);
 
@@ -178,8 +170,6 @@ export async function getChatById(userUID, chatId) {
     }
 
     const chatData = chatSnap.data();
-
-    // 🧩 Reconstruct messages properly
     const messages = (chatData.messages || []).map((msg) => ({
       role: msg.sender === "user" ? "user" : "ai",
       content: msg.text,
