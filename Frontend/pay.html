@@ -171,6 +171,63 @@
 </script>
 
 
+<script type="module">
+  import { app } from "./firebase.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // 🎯 Target only the premium plan’s price
+  const premiumPriceElement = document.querySelector(".card.premium .price");
+
+  // 🌍 Nationality-based pricing
+  const pricing = {
+    Kenyan: { value: 1499, currency: "KES" },
+    Ugandan: { value: 55000, currency: "UGX" },
+    Tanzanian: { value: 26000, currency: "TZS" },
+    Nigerian: { value: 15000, currency: "NGN" },
+    "South African": { value: 360, currency: "ZAR" },
+    Other: { value: 19, currency: "$" },
+    default: { value: 19, currency: "$" }
+  };
+
+  // 🔥 When user is authenticated
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      try {
+        const userRef = doc(db, "signup", user.uid); // ✅ use signup collection
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const nationality = userData.nationality || "default";
+          console.log("User nationality:", nationality);
+
+          const userPricing = pricing[nationality] || pricing.default;
+
+          // ✨ Smoothly animate the price update
+          premiumPriceElement.style.transition = "opacity 0.5s ease";
+          premiumPriceElement.style.opacity = 0;
+
+          setTimeout(() => {
+            premiumPriceElement.innerHTML = `${userPricing.currency}${userPricing.value}<span>/month</span>`;
+            premiumPriceElement.style.opacity = 1;
+          }, 400);
+        } else {
+          console.warn("User document not found in 'signup' collection.");
+        }
+      } catch (error) {
+        console.error("Error fetching user nationality:", error);
+      }
+    } else {
+      console.warn("No user is signed in. Price will remain default.");
+    }
+  });
+</script>
+
+
 
 </body>
 </html>

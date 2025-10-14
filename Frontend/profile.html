@@ -57,6 +57,24 @@
   <p><span id="login-status">Checking...</span></p>
 </div>
 
+<div class="info-group" id="nationality-group" style="display: none;">
+  <label><span class="shuffle-text">Nationality:</span></label>
+  <div class="nationality-wrapper">
+    <p id="nationality-display"></p>
+    <select id="nationality-select">
+      <option value="">Select your nationality</option>
+      <option value="Kenyan">Kenyan</option>
+      <option value="Ugandan">Ugandan</option>
+      <option value="Tanzanian">Tanzanian</option>
+      <option value="Nigerian">Nigerian</option>
+      <option value="South African">South African</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+</div>
+
+
+
 
 <div class="info-group">
   <label><span class="shuffle-text">Payment Package:</span></label>
@@ -104,10 +122,14 @@ const profilePhoto = document.getElementById("profile-photo");
 const photoUploadInput = document.getElementById("photo-upload");
 const profilePhotoWrapper = document.querySelector(".profile-photo-wrapper");
 
+const nationalityGroup = document.getElementById("nationality-group");
+const nationalityDisplay = document.getElementById("nationality-display");
+const nationalitySelect = document.getElementById("nationality-select");
+
 let isUidVisible = false;
 let actualUid = "";
 
-// Handle Login
+// --- Handle Login ---
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
@@ -117,7 +139,7 @@ onAuthStateChanged(auth, async (user) => {
 
       profileUidSpan.textContent = "•••••••••••••••••••••••";
 
-      // Load photo from Firestore
+      // --- Load Profile Photo ---
       const photoDocRef = doc(db, "photo", actualUid);
       const photoDocSnap = await getDoc(photoDocRef);
       if (photoDocSnap.exists() && photoDocSnap.data().photoBase64) {
@@ -125,6 +147,52 @@ onAuthStateChanged(auth, async (user) => {
       } else {
         profilePhoto.src = "default-avatar.png";
       }
+
+      // --- Handle Nationality ---
+      nationalityGroup.style.display = "block";
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const nationality = userData.nationality;
+
+        if (nationality) {
+          // ✅ Already has nationality saved
+          nationalityDisplay.textContent = nationality;
+          nationalitySelect.style.display = "none";
+        } else {
+          // 🟡 Prompt for nationality
+          nationalityDisplay.textContent = "Please select your nationality:";
+          nationalitySelect.style.display = "block";
+
+          nationalitySelect.addEventListener("change", async (e) => {
+            const chosenNationality = e.target.value;
+            if (chosenNationality) {
+              try {
+                // Save nationality to Firestore
+                await setDoc(
+                  doc(db, "signup", user.uid),
+                  { nationality: chosenNationality },
+                  { merge: true }
+                );
+
+                // Save nationality to localStorage
+                localStorage.setItem("userNationality", chosenNationality);
+
+                // Update UI
+                nationalityDisplay.textContent = chosenNationality;
+                nationalitySelect.style.display = "none";
+
+                console.log("✅ Nationality saved successfully!");
+              } catch (error) {
+                console.error("❌ Error saving nationality:", error);
+              }
+            }
+          });
+        }
+      } else {
+        console.warn("⚠️ User document not found in Firestore.");
+      }
+
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
@@ -134,7 +202,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Toggle UID visibility
+// --- Toggle UID Visibility ---
 toggleBtn.addEventListener("click", () => {
   if (!actualUid) return;
   isUidVisible = !isUidVisible;
@@ -149,7 +217,7 @@ toggleBtn.addEventListener("click", () => {
   }
 });
 
-// Click profile photo to upload
+// --- Click profile photo to upload ---
 profilePhotoWrapper.addEventListener("click", () => {
   if (actualUid) {
     photoUploadInput.click();
@@ -158,17 +226,17 @@ profilePhotoWrapper.addEventListener("click", () => {
   }
 });
 
-// Convert file to Base64
+// --- Convert File to Base64 ---
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result); // result includes "data:image/png;base64,..."
+    reader.onloadend = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-// Upload Base64 photo to Firestore
+// --- Upload Base64 Photo to Firestore ---
 photoUploadInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file || !actualUid) return;
@@ -178,16 +246,18 @@ photoUploadInput.addEventListener("change", async (e) => {
 
     await setDoc(doc(db, "photo", actualUid), {
       uid: actualUid,
-      photoBase64: base64String
+      photoBase64: base64String,
     });
 
     profilePhoto.src = base64String;
-    console.log("Profile photo uploaded successfully as Base64!");
+    console.log("✅ Profile photo uploaded successfully as Base64!");
   } catch (error) {
-    console.error("Error uploading photo:", error);
+    console.error("❌ Error uploading photo:", error);
   }
 });
 </script>
+
+
 
 <script type="module">
   import { app } from './firebase-config.js';

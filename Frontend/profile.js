@@ -167,3 +167,5 @@ window.addEventListener('DOMContentLoaded', () => {
     shuffleText(el, finalText, 5000, 50); // 5 seconds animation
   });
 });
+
+

@@ -53,16 +53,43 @@
                 <input type="password" placeholder="Password" id="password" required>
             </div>
 
-            <div class="input-group signup-only">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#00246b" viewBox="0 0 24 24">
-                <path d="M12 2a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 
-                        2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 
-                        0-2-2h-1V7a5 5 0 0 0-5-5zm-3 9V7a3 3 0 1 
-                        1 6 0v4H9z"/>
-                </svg>
+<!-- Confirm Password -->
+<div class="input-group signup-only">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#00246b" viewBox="0 0 24 24">
+    <path d="M12 2a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 
+            2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 
+            0-2-2h-1V7a5 5 0 0 0-5-5zm-3 9V7a3 3 0 1 
+            1 6 0v4H9z"/>
+  </svg>
+  <input type="password" placeholder="Confirm Password" id="confirm-password">
+</div>
 
-                <input type="password" placeholder="Confirm Password" id="confirm-password">
-            </div>
+<!-- Nationality -->
+<div class="input-group signup-only">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#00246b" viewBox="0 0 24 24">
+    <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10
+             10-4.486 10-10S17.514 2 12 2zm7.938 9h-3.091a15.91
+             15.91 0 0 0-2.019-6.707A8.038 8.038 0 0 1 19.938
+             11zM12 4.062A13.936 13.936 0 0 1 14.877 11H9.123A13.936
+             13.936 0 0 1 12 4.062zM4.062 13h3.091a15.91
+             15.91 0 0 0 2.019 6.707A8.038 8.038 0 0 1
+             4.062 13zm4.985 0h5.906A13.936 13.936 0 0 1
+             12 19.938 13.936 13.936 0 0 1 9.047 13zm5.871
+             6.707A15.91 15.91 0 0 0 16.847 13h3.091a8.038
+             8.038 0 0 1-4.02 6.707z"/>
+  </svg>
+
+  <select id="nationality" required>
+    <option value="">Select Nationality</option>
+    <option value="Kenyan">Kenyan</option>
+    <option value="Ugandan">Ugandan</option>
+    <option value="Tanzanian">Tanzanian</option>
+    <option value="Nigerian">Nigerian</option>
+    <option value="South African">South African</option>
+    <option value="Other">Other</option>
+  </select>
+</div>
+
 
             <button type="submit" class="main-btn" id="submit-btn">Sign Up</button>
         </form>
