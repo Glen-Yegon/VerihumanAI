@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
   <!-- CSS -->
-  <link rel="stylesheet" href="profile.css" />
+  <link rel="stylesheet" href="styles/profile.css" />
 </head>
  
 <body>
@@ -94,15 +94,12 @@
     </section>
   </main>
 
-  <!-- JS -->
-  <script src="profile.js" type="module"></script>
-
   
 <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
 
 
   <!-- Your custom JS -->
-  <script src="profile.js" type="module"></script>
+  <script src="scripts/profile.js" type="module"></script>
 
   <!-- Init particles -->
   
@@ -295,7 +292,7 @@ onAuthStateChanged(auth, async (user) => {
 </script>
 
 <script type="module">
-import { app } from "./firebase.js";
+import { app } from "./firebase-config/firebase.js";
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 // Handle logout button click

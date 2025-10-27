@@ -1,4 +1,4 @@
-import { getAllChats, getChatById } from "./firebase-history.js";
+import { getAllChats, getChatById } from "../firebase-config/firebase-history.js";
 
 
 window.addEventListener("DOMContentLoaded", () => {

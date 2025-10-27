@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verihuman - Sign Up / Login</title>
-    <link rel="stylesheet" href="sign.css">
+    <link rel="stylesheet" href="styles/sign.css">
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -79,15 +79,16 @@
              8.038 0 0 1-4.02 6.707z"/>
   </svg>
 
-  <select id="nationality" required>
-    <option value="">Select Nationality</option>
-    <option value="Kenyan">Kenyan</option>
-    <option value="Ugandan">Ugandan</option>
-    <option value="Tanzanian">Tanzanian</option>
-    <option value="Nigerian">Nigerian</option>
-    <option value="South African">South African</option>
-    <option value="Other">Other</option>
-  </select>
+<select id="nationality" name="nationality">
+  <option value="">Select Nationality</option>
+  <option value="Kenyan">Kenyan</option>
+  <option value="Ugandan">Ugandan</option>
+  <option value="Tanzanian">Tanzanian</option>
+  <option value="Nigerian">Nigerian</option>
+  <option value="South African">South African</option>
+  <option value="Other">Other</option>
+</select>
+
 </div>
 
 
@@ -98,24 +99,19 @@
         <div class="divider">or</div>
 
 
-<!-- Google Sign-In -->
-<div id="g_id_onload"
-     data-client_id="104006969787-f79gos7l3j61q9ntml1u6kr5c99bhbuh.apps.googleusercontent.com"
-     data-context="signup"
-     data-ux_mode="popup"
-     data-login_uri="https://mywebsite.com/sign.html"
-     data-callback="handleGoogleSignIn"
-     data-auto_prompt="false">
-</div>
+<button id="google-btn" class="google-signin-btn">
+  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+       alt="Google" style="width:20px; margin-right:8px;">
+  Continue with Google
+</button>
 
-<div class="g_id_signin"
-     data-type="standard"
-     data-shape="rectangular"
-     data-theme="outline"
-     data-text="continue_with"
-     data-size="large"
-     data-logo_alignment="left">
-</div>
+
+<button id="apple-btn" class="apple-signin-btn">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" 
+       alt="Apple" style="width:18px; margin-right:8px;">
+  Continue with Apple
+</button>
+
 
 
         <!-- Microsoft Sign-In 
@@ -151,7 +147,7 @@
 
 
 
-    <script src="sign.js"></script>
+    <script src="scripts/sign.js"></script>
     <!-- Load particles.js from a working CDN -->
 <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 
@@ -210,9 +206,10 @@ particlesJS("particles-js", {
 </script>
 
 <!-- Firebase Auth Scripts -->
-<script type="module" src="firebase.js"></script>
-<script type="module" src="email-auth.js"></script>
-<script type="module" src="google-auth.js"></script>
+<script type="module" src="firebase-config/firebase.js"></script>
+<script type="module" src="firebase-config/email-auth.js"></script>
+<script type="module" src="firebase-config/google-auth.js"></script>
+<script type="module" src="firebase-config/apple-auth.js"></script>
 
 
 </body>
