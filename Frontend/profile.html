@@ -106,10 +106,11 @@
 <script type="module">
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { app } from "./firebase.js";
+import { app } from "./firebase-config/firebase.js";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 
 // Elements
 const profileUidSpan = document.getElementById("profile-uid");
@@ -125,6 +126,32 @@ const nationalitySelect = document.getElementById("nationality-select");
 
 let isUidVisible = false;
 let actualUid = "";
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            // Get user ID
+            const userId = user.uid;
+
+            // Fetch image URL from Firestore (photo collection)
+            const photoRef = doc(db, "photo", userId);
+            const photoSnap = await getDoc(photoRef);
+
+            if (photoSnap.exists()) {
+                const imageUrl = photoSnap.data().imageUrl; // assuming field name is imageUrl
+                document.getElementById("user-avatar").style.backgroundImage = `url(${imageUrl})`;
+                document.getElementById("user-avatar").style.backgroundSize = "cover";
+                document.getElementById("user-avatar").style.backgroundPosition = "center";
+            } else {
+                console.warn("No profile photo found for this user.");
+            }
+        } catch (error) {
+            console.error("Error fetching user photo:", error);
+        }
+    } else {
+        console.log("No user is signed in.");
+    }
+});
 
 // --- Handle Login ---
 onAuthStateChanged(auth, async (user) => {
@@ -254,42 +281,6 @@ photoUploadInput.addEventListener("change", async (e) => {
 });
 </script>
 
-
-
-<script type="module">
-  import { app } from './firebase-config.js';
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
-
-
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        try {
-            // Get user ID
-            const userId = user.uid;
-
-            // Fetch image URL from Firestore (photo collection)
-            const photoRef = doc(db, "photo", userId);
-            const photoSnap = await getDoc(photoRef);
-
-            if (photoSnap.exists()) {
-                const imageUrl = photoSnap.data().imageUrl; // assuming field name is imageUrl
-                document.getElementById("user-avatar").style.backgroundImage = `url(${imageUrl})`;
-                document.getElementById("user-avatar").style.backgroundSize = "cover";
-                document.getElementById("user-avatar").style.backgroundPosition = "center";
-            } else {
-                console.warn("No profile photo found for this user.");
-            }
-        } catch (error) {
-            console.error("Error fetching user photo:", error);
-        }
-    } else {
-        console.log("No user is signed in.");
-    }
-});
-
-</script>
 
 <script type="module">
 import { app } from "./firebase-config/firebase.js";
