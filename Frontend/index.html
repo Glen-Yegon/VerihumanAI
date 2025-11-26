@@ -100,6 +100,14 @@
 
 </aside>
 
+<!-- Mode Switch Buttons (Desktop + Mobile) -->
+<div id="mode-switcher" class="mode-switcher">
+  <button class="mode-btn active" data-mode="chat">Chat</button>
+  <button class="mode-btn" data-mode="detect">Detector</button>
+  <button class="mode-btn" data-mode="humanize">Humanizer</button>
+</div>
+
+
 <!-- Profile Modal -->
 <div id="profile-modal" class="modal">
   <div class="modal-content">
@@ -186,8 +194,6 @@
     
 <main style="position: relative; width: 100vw; height: 100vh; ">
 
-  <!-- Canvas for text particles effect on top -->
-  <canvas id="text-particles" style="position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events:none;"></canvas>
 
 <!-- AI Welcome Chat Bubble -->
 <div class="ai-welcome-container" style="opacity: 0;">
@@ -200,9 +206,26 @@
 
 <!-- Chat Section Wrapper -->
 <section id="chat-section" class="chat-section">
+
   <!-- Chat Messages Container -->
   <div id="chat-container" class="chat-container"></div>
+
+<!-- Detection Mode UI (appears below last chat message) -->
+<div id="detection-ui" class="detection-ui hidden">
+  <div class="chat-wrapper ai">
+    <div class="avatar" id="detection-avatar" 
+         style="background-image: url('images/vERIHUMAN (8).png')">
+    </div>
+    <div class="chat-bubble ai">
+      <textarea id="detect-input" placeholder="Paste text here for AI detection..."></textarea>
+      <button id="run-detection-btn">Run Detection</button>
+    </div>
+  </div>
+</div>
+
+  
 </section>
+
 
 
 <!-- Bottom Input Bar wrapped in a form -->
@@ -380,6 +403,115 @@ loadUserData();
 
   // Local store of current conversation
   let currentChatMessages = [];
+// -------------------------------
+// MODE SWITCHING LOGIC + UI UPDATE
+// -------------------------------
+
+// Get last saved mode from localStorage
+const savedMode = localStorage.getItem("verihuman_mode");
+
+// Start **visually** in chat mode, ignore savedMode for initial display
+let currentMode = "chat";
+
+const modeButtons = document.querySelectorAll(".mode-btn");
+const detectionUI = document.getElementById("detection-ui"); // detection textarea + run button
+const detectInput = document.getElementById("detect-input");
+const runDetectionBtn = document.getElementById("run-detection-btn");
+
+const chatInputContainer = document.getElementById("chatForm"); // bottom input form
+
+// Apply correct active button on page load (chat mode)
+modeButtons.forEach(btn => {
+  btn.classList.remove("active");
+  if (btn.dataset.mode === currentMode) {
+    btn.classList.add("active");
+  }
+});
+
+// Function to update the UI based on mode
+function updateModeUI() {
+  if (currentMode === "detect") {
+    // Add a "mode switched" bubble if not already present
+    const lastBubble = chatContainer.lastElementChild;
+    if (!lastBubble || !lastBubble.classList.contains("mode-switch-bubble")) {
+      const bubble = createBubble("🟡 Switched to AI Detection Mode", "ai");
+      bubble.classList.add("mode-switch-bubble");
+
+      // Append detection UI inside chat container, below mode-switch bubble
+      if (!chatContainer.contains(detectionUI)) {
+        chatContainer.appendChild(detectionUI);
+      }
+    }
+
+    detectionUI.classList.remove("hidden");
+
+    // Hide bottom input bar completely
+    chatInputContainer.style.display = "none";
+// Show detection UI
+detectionUI.classList.remove("hidden");
+if (!chatContainer.contains(detectionUI)) {
+  chatContainer.appendChild(detectionUI);
+}
+    scrollToBottom();
+  } else {
+    chatInputContainer.style.display = "flex"; // restore
+    detectionUI.classList.add("hidden");
+
+    // Show bottom input bar
+    chatInputContainer.style.display = "flex"; // restore default display
+
+    chatInput.disabled = false;
+    sendBtn.disabled = false;
+
+    // Remove detection UI from chat flow if leaving detect mode
+    if (chatContainer.contains(detectionUI)) {
+      chatContainer.removeChild(detectionUI);
+    }
+  }
+}
+
+// Handle mode button clicks
+modeButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const selectedMode = btn.dataset.mode;
+
+    if (selectedMode === currentMode) return;
+
+    // Update active button UI
+    modeButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // Update mode in memory
+    currentMode = selectedMode;
+
+    // Save the current mode to localStorage so next visit restores it
+    localStorage.setItem("verihuman_mode", selectedMode);
+
+    // Update the UI
+    updateModeUI();
+
+    // Announce mode switch in chat UI
+    const modeText = {
+      chat: "🔵 Switched to Chat Mode",
+      detect: "🟡 Switched to AI Detection Mode",
+      humanize: "🟣 Switched to Humanizer Mode",
+    };
+
+    // Only type text if not detect (detect adds bubble automatically)
+    if (selectedMode !== "detect") {
+      const bubble = createBubble("", "ai");
+      typeText(bubble, modeText[selectedMode]);
+    }
+  });
+});
+
+// Run once on page load: always start visually in chat
+updateModeUI();
+
+// Optional helper
+function getCurrentMode() {
+  return currentMode;
+}
 
   function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -413,9 +545,56 @@ loadUserData();
     wrapper.appendChild(avatarEl);
     wrapper.appendChild(bubble);
     chatContainer.appendChild(wrapper);
-    scrollToBottom();
-    return bubble;
+// After appending bubble to wrapper and scrolling
+scrollToBottom();
+
+// Add copy button to this bubble
+addCopyButton(bubble);
+
+return bubble;
+
   }
+
+ function addCopyButton(bubbleEl) {
+  // Skip if bubble already has a copy button
+  if (bubbleEl.querySelector(".copy-btn")) return;
+
+  const btn = document.createElement("button");
+  btn.className = "copy-btn";
+  btn.title = "Copy text";
+
+  // SVG icon for copy
+  btn.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#000000" viewBox="0 0 24 24">
+      <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1z"/>
+      <path d="M20 5H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 18H8V7h12v16z"/>
+    </svg>
+  `;
+
+  btn.style.marginLeft = "8px";
+  btn.style.background = "transparent";
+  btn.style.border = "none";
+  btn.style.cursor = "pointer";
+  btn.style.padding = "0";
+  btn.style.display = "inline-flex";
+  btn.style.alignItems = "center";
+
+  // Copy text on click
+  btn.addEventListener("click", () => {
+    const textToCopy = bubbleEl.textContent.trim();
+    if (!textToCopy) return;
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      btn.title = "Copied to clipboard";
+      setTimeout(() => (btn.title = "Copy text"), 1500);
+    });
+  });
+
+  // Append button inside the bubble
+  bubbleEl.appendChild(btn);
+}
+
+
 
   async function typeText(el, text) {
     el.textContent = "";
@@ -538,6 +717,69 @@ loadUserData();
       handleSend();
     }
   });
+
+// ------------------------
+// Detection mode send logic
+// ------------------------
+runDetectionBtn.addEventListener("click", async () => {
+  const text = detectInput.value.trim();
+  if (!text) return;
+
+  // Add user bubble
+  const userBubble = createBubble(text, "user");
+  addMessage("user", text);
+
+  // Add AI scanning bubble
+  const aiBubble = createBubble("", "ai", { scanning: true });
+
+  detectInput.value = "";
+  detectInput.disabled = true;
+  runDetectionBtn.disabled = true;
+
+  try {
+    // Send 'document' to backend
+    const res = await fetch("http://127.0.0.1:8000/api/detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ document: text }),
+    });
+
+    const data = await res.json();
+    aiBubble.classList.remove("scanning");
+
+    // Build main result line
+    const classification = data.document_classification || "UNKNOWN";
+    const confidenceValue = data.class_probabilities?.[classification];
+    const confidenceText = confidenceValue != null
+      ? ` (Confidence: ${(confidenceValue*100).toFixed(1)}%)`
+      : "";
+
+    // Explanation
+    const explanation = data.explanation || "No explanation provided.";
+
+    // Text stats (length, readability, etc.)
+    const textStats = data.text_stats ? JSON.stringify(data.text_stats, null, 2) : "No text stats.";
+
+    // Combine into one result bubble
+    const finalText = `${classification}${confidenceText}\n\nExplanation:\n${explanation}\n\nText Stats:\n${textStats}`;
+
+    const resultBubble = createBubble(finalText, "ai");
+    resultBubble.classList.add("detect-result");
+
+    addMessage("ai", finalText);
+
+  } catch (err) {
+    console.error("❌ Detection error:", err);
+    aiBubble.classList.remove("scanning");
+    aiBubble.textContent = "Detection failed. Try again.";
+  } finally {
+    detectInput.disabled = false;
+    runDetectionBtn.disabled = false;
+    detectInput.focus();
+    scrollToBottom();
+  }
+});
+
 
   // ------------------------
   // Load previous chat on start

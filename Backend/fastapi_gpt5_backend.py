@@ -1,5 +1,6 @@
 import os
 import asyncio
+import httpx  # for async HTTP requests to GPTZero
 import logging
 from pathlib import Path
 from typing import Optional, Any, Dict
@@ -28,6 +29,8 @@ except Exception as e:
 API_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-nano")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../frontend")  # relative path from backend folder
+# GPTZero API key
+GPTZERO_API_KEY = os.getenv("GPTZERO_API_KEY", "6b5169ab9fb34fa285c6c83094f45d9d")  # replace with your key or use env
 
 # Basic logging
 logging.basicConfig(level=logging.INFO)
@@ -73,6 +76,14 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     usage: Optional[Dict[str, Any]] = None
+
+class DetectRequest(BaseModel):
+    document: str = Field(..., min_length=1, description="Text to detect for AI content")
+
+class DetectResponse(BaseModel):
+    document: str
+    document_classification: str  # e.g. "AI_ONLY", "HUMAN_ONLY", "MIXED"
+    class_probabilities: dict     # e.g. {"AI_ONLY": 0.87, "HUMAN_ONLY": 0.13}
 
 
 # -------------------- Helpers --------------------
@@ -172,6 +183,60 @@ def safe_extract_reply(resp) -> str:
 
 
 
+@app.post("/api/detect", response_model=DetectResponse)
+async def detect(req: DetectRequest):
+    """
+    Detects if the given document is AI-generated using GPTZero API v2.
+    Returns classification, probabilities, explanation, and text stats.
+    """
+    user_text = req.document.strip()
+    if not user_text:
+        raise HTTPException(status_code=400, detail="Empty text provided")
+
+    url = "https://api.gptzero.me/v2/predict/text"
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": GPTZERO_API_KEY
+    }
+
+    payload = {
+        "document": user_text,
+        "detailed": True,       # Request detailed report
+        "explain": True,        # Ask for explanations
+        "max_tokens": 2000,      # Ensure longer texts are fully processed
+        "include": ["explanation", "text_stats", "class_probabilities"]
+    }
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            # Make async request to GPTZero
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+
+            # Safely extract fields
+            classification = data.get("document_classification", "UNKNOWN")
+            probs = data.get("class_probabilities", {})
+            explanation = data.get("explanation") or "No explanation provided"
+            text_stats = data.get("text_stats") or {}
+
+            # Log raw response for debugging
+            logger.info(f"GPTZero response: {data}")
+
+            return DetectResponse(
+                document=user_text,
+                document_classification=classification,
+                class_probabilities=probs,
+                explanation=explanation,
+                text_stats=text_stats
+            )
+
+        except httpx.HTTPError as e:
+            logger.error(f"GPTZero API error: {str(e)} — response: {resp.text if 'resp' in locals() else 'no resp'}")
+            raise HTTPException(status_code=502, detail="GPTZero API error")
+        except Exception as e:
+            logger.exception(f"Unexpected error in /api/detect: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
 
 

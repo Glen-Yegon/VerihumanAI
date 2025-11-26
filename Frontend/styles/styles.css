@@ -275,7 +275,7 @@ html, body {
 /* Chat box */
 .chat-input-container {
   position: absolute;
-  bottom: 40px;
+  bottom: 70px;
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
@@ -336,7 +336,7 @@ html, body {
   .chat-input-container {
     padding: 25px 12px;
     margin-top: 0px;
-    bottom: 100px;
+    bottom: 130px;
     gap: 8px;
   }
 
@@ -355,7 +355,7 @@ html, body {
   .chat-input-container {
     padding: 20px 12px;
     margin-top: 0px;
-    bottom: 100px;
+    bottom: 120px;
     gap: 8px;
   }
 
@@ -437,7 +437,7 @@ html, body {
   position: relative;
   display: flex;
   justify-content: center; /* Center chat horizontally */
-  padding: 20px;
+  padding: 0px;
   width: 100%;
   height: auto; /* Can grow with content */
   z-index: 9999;
@@ -555,7 +555,7 @@ html, body {
 /* Mobile view */
 @media (max-width: 768px) {
   .chat-container {
-    max-width: 90%;
+    max-width: 100%;
   }
 }
 
@@ -1037,4 +1037,175 @@ html, body {
 @keyframes glowPulse {
   0%, 100% { box-shadow: 0 0 8px rgba(138, 182, 249, 0.6); }
   50% { box-shadow: 0 0 14px rgba(138, 182, 249, 1); }
+}
+
+
+/* Mode Switcher Container */
+.mode-switcher {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 0;
+  background: #00246b;
+  border-bottom: 1px solid #8ab6f9;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+/* Buttons */
+.mode-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 2px solid #cadcfc;
+  background: transparent;
+  color: #cadcfc;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.mode-btn:hover {
+  background: #8ab6f9;
+  color: #00246b;
+}
+
+/* Active Mode */
+.mode-btn.active {
+  background: #cadcfc;
+  color: #00246b;
+  font-weight: 600;
+}
+
+/* Mobile — move below header */
+@media (max-width: 768px) {
+  .mode-switcher {
+    background: #00246b;
+  }
+}
+
+
+/* ---------------------------- */
+/* Detection UI Container */
+/* ---------------------------- */
+.detection-ui {
+  width: 100%;
+  max-width: 50vw; /* same as chat container */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-left: 4px; /* aligns with AI bubble slightly */
+  margin-top: 8px;
+  margin-bottom: 15px;
+  font-family: 'Inter', sans-serif;
+  z-index: 1; /* ensure it stays in flow */
+  transition: opacity 0.3s ease;
+}
+
+/* Hidden class — only hide the element itself */
+.detection-ui.hidden {
+  display: none !important;
+}
+
+/* ---------------------------- */
+/* Textarea */
+/* ---------------------------- */
+#detect-input {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px;
+  font-size: 1rem;
+  font-family: 'Exo 2', sans-serif;
+  color: #cadcfc;
+  background: rgba(0, 36, 107, 0.35);
+  border: 1px solid #8ab6f9;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+  resize: vertical;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+#detect-input:focus {
+  border-color: #cadcfc;
+  box-shadow: 0 0 8px rgba(202, 220, 252, 0.6);
+}
+
+/* ---------------------------- */
+/* Run Detection Button */
+/* ---------------------------- */
+#run-detection-btn {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #8ab6f9;
+  color: #00246b;
+  border: none;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  align-self: flex-start; /* aligns nicely under textarea */
+  transition: background 0.25s ease, transform 0.15s ease;
+}
+
+#run-detection-btn:hover {
+  background: #cadcfc;
+  transform: translateY(-1px);
+}
+
+#run-detection-btn:active {
+  transform: translateY(1px);
+}
+
+/* ---------------------------- */
+/* Detection Result Bubble */
+/* ---------------------------- */
+.chat-bubble.detect-result {
+  align-self: flex-start;
+  background: rgba(255, 198, 0, 0.1);
+  border-left: 6px solid #ffeb3b;
+  color: #ffeb3b;
+  padding: 14px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 14px rgba(255, 235, 59, 0.4);
+  margin-top: 8px;
+  max-width: 100%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ---------------------------- */
+/* Reuse fadeIn for detection bubble */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------------------------- */
+/* Mobile Responsiveness */
+/* ---------------------------- */
+@media (max-width: 768px) {
+  .detection-ui {
+    max-width: 90%; /* full width on mobile */
+  }
+  
+  #detect-input {
+    min-height: 100px;
+  }
+}
+
+
+.chat-bubble .copy-btn {
+  float: right;
+  margin-left: 8px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.chat-bubble .copy-btn:hover {
+  opacity: 1;
 }
