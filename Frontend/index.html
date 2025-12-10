@@ -657,15 +657,17 @@ return bubble;
   }
 
   // ------------------------
-  // Handle send button click
-  // ------------------------
-  async function handleSend() {
+// Handle send button click
+// ------------------------
+async function handleSend() {
   const text = chatInput.value.trim();
   if (!text) return;
 
+  // Create user bubble
   createBubble(text, "user");
   addMessage("user", text);
 
+  // Create AI bubble with scanning animation
   const aiBubble = createBubble("", "ai", { scanning: true });
 
   chatInput.value = "";
@@ -678,6 +680,7 @@ return bubble;
         ? data.reply
         : String(data.reply || "[no reply]");
 
+    // Show AI response
     aiBubble.classList.remove("scanning");
     await typeText(aiBubble, reply);
     addMessage("ai", reply);
@@ -685,13 +688,7 @@ return bubble;
     // ✅ Save this exchange to history (new or existing conversation)
     const userUID = sessionStorage.getItem("userUID");
     if (userUID) {
-      // if it's a new conversation, force creation of a new Firestore doc
       await saveChatToHistory(userUID, text, reply, isNewConversation);
-      // reset the flag after the first save
-      if (currentChatId) {
-  await loadChatIntoContainer(currentChatId); // refresh the chat in UI
-}
-
       isNewConversation = false;
     }
 
@@ -718,26 +715,27 @@ return bubble;
     }
   });
 
+
+ // ------------------------
 // ------------------------
-// Detection mode send logic
+// Detection mode send logic (professional UI, exact API confidence)
 // ------------------------
 runDetectionBtn.addEventListener("click", async () => {
   const text = detectInput.value.trim();
   if (!text) return;
 
-  // Add user bubble
-  const userBubble = createBubble(text, "user");
+  // Add user message bubble
+  createBubble(text, "user");
   addMessage("user", text);
 
-  // Add AI scanning bubble
   const aiBubble = createBubble("", "ai", { scanning: true });
 
+  // Disable input during processing
   detectInput.value = "";
   detectInput.disabled = true;
   runDetectionBtn.disabled = true;
 
   try {
-    // Send 'document' to backend
     const res = await fetch("http://127.0.0.1:8000/api/detect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -747,38 +745,122 @@ runDetectionBtn.addEventListener("click", async () => {
     const data = await res.json();
     aiBubble.classList.remove("scanning");
 
-    // Build main result line
     const classification = data.document_classification || "UNKNOWN";
-    const confidenceValue = data.class_probabilities?.[classification];
-    const confidenceText = confidenceValue != null
-      ? ` (Confidence: ${(confidenceValue*100).toFixed(1)}%)`
-      : "";
 
-    // Explanation
+    // Extract exact confidence score from API
+    let confidenceScore = 0;
+    if (data.explanation) {
+      const match = data.explanation.match(/Confidence Score:\s*([\d.]+)%/);
+      if (match) confidenceScore = parseFloat(match[1]);
+    }
+
     const explanation = data.explanation || "No explanation provided.";
 
-    // Text stats (length, readability, etc.)
-    const textStats = data.text_stats ? JSON.stringify(data.text_stats, null, 2) : "No text stats.";
+    // Container for AI response
+    const container = document.createElement("div");
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.alignItems = "center";
+    container.style.gap = "10px";
+    container.style.fontFamily = "'Exo 2', sans-serif";
 
-    // Combine into one result bubble
-    const finalText = `${classification}${confidenceText}\n\nExplanation:\n${explanation}\n\nText Stats:\n${textStats}`;
+    // AI Likeliness
+    const confidenceEl = document.createElement("div");
+    confidenceEl.textContent = `AI Likeliness: ${confidenceScore.toFixed(1)}%`;
+    confidenceEl.style.fontSize = "1.3rem";
+    confidenceEl.style.fontWeight = "700";
+    confidenceEl.style.color = "#8ab6f9";
+    container.appendChild(confidenceEl);
 
-    const resultBubble = createBubble(finalText, "ai");
-    resultBubble.classList.add("detect-result");
+    // Classification
+    const classEl = document.createElement("div");
+    classEl.textContent = `Classification: ${classification}`;
+    classEl.style.fontWeight = "600";
+    container.appendChild(classEl);
 
-    addMessage("ai", finalText);
+    // Explanation
+    const explEl = document.createElement("div");
+    explEl.textContent = explanation.length > 180 ? explanation.slice(0, 180) + "..." : explanation;
+    explEl.style.fontSize = "0.9rem";
+    explEl.style.textAlign = "center";
+    container.appendChild(explEl);
+
+    // Writing stats
+    if (data.text_stats) {
+      const ts = data.text_stats;
+      const statsEl = document.createElement("div");
+      statsEl.style.fontSize = "0.85rem";
+      statsEl.style.textAlign = "center";
+      statsEl.innerHTML = `
+        • Total Sentences: ${ts.total_sentences}<br>
+        • Highlighted as AI: ${ts.highlighted_as_ai}<br>
+        ${ts.burstiness != null ? `• Burstiness: ${ts.burstiness}<br>` : ""}
+      `;
+      container.appendChild(statsEl);
+    }
+
+    // Sentence-level collapsible analysis
+    if (data.text_stats?.sentences?.length) {
+      const detailsBtn = document.createElement("button");
+      detailsBtn.textContent = "Show Sentence Details";
+      detailsBtn.style.marginTop = "6px";
+      detailsBtn.style.padding = "4px 8px";
+      detailsBtn.style.borderRadius = "8px";
+      detailsBtn.style.border = "none";
+      detailsBtn.style.background = "#00246b";
+      detailsBtn.style.color = "#cadcfc";
+      detailsBtn.style.cursor = "pointer";
+
+      const detailsDiv = document.createElement("div");
+      detailsDiv.style.display = "none";
+      detailsDiv.style.marginTop = "6px";
+      detailsDiv.style.fontSize = "0.8rem";
+      detailsDiv.style.textAlign = "left";
+      detailsDiv.style.maxHeight = "180px";
+      detailsDiv.style.overflowY = "auto";
+      detailsDiv.style.width = "100%";
+
+      data.text_stats.sentences.forEach((s, i) => {
+        const line = document.createElement("div");
+        line.textContent = `${i + 1}. ${s.sentence} ${s.highlighted ? "⚠️" : ""}`;
+        detailsDiv.appendChild(line);
+      });
+
+      detailsBtn.addEventListener("click", () => {
+        if (detailsDiv.style.display === "none") {
+          detailsDiv.style.display = "block";
+          detailsBtn.textContent = "Hide Sentence Details";
+        } else {
+          detailsDiv.style.display = "none";
+          detailsBtn.textContent = "Show Sentence Details";
+        }
+      });
+
+      container.appendChild(detailsBtn);
+      container.appendChild(detailsDiv);
+    }
+
+    // Show AI response
+    aiBubble.innerHTML = "";
+    aiBubble.appendChild(container);
+    aiBubble.classList.add("detect-result");
+
+    addMessage("ai", `[AI Detection Result]`);
 
   } catch (err) {
     console.error("❌ Detection error:", err);
     aiBubble.classList.remove("scanning");
     aiBubble.textContent = "Detection failed. Try again.";
   } finally {
+    // Always show the input bar after AI responds
     detectInput.disabled = false;
     runDetectionBtn.disabled = false;
+    detectInput.style.display = "block";  // ensure it is visible
     detectInput.focus();
     scrollToBottom();
   }
 });
+
 
 
   // ------------------------
@@ -850,6 +932,9 @@ runDetectionBtn.addEventListener("click", async () => {
   init();
 
 </script>
+
+
+
 
 <script>
 // Block all reloads, navigations, and form submissions

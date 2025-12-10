@@ -3,7 +3,7 @@ import asyncio
 import httpx  # for async HTTP requests to GPTZero
 import logging
 from pathlib import Path
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -76,14 +76,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     usage: Optional[Dict[str, Any]] = None
-
-class DetectRequest(BaseModel):
-    document: str = Field(..., min_length=1, description="Text to detect for AI content")
-
-class DetectResponse(BaseModel):
-    document: str
-    document_classification: str  # e.g. "AI_ONLY", "HUMAN_ONLY", "MIXED"
-    class_probabilities: dict     # e.g. {"AI_ONLY": 0.87, "HUMAN_ONLY": 0.13}
 
 
 # -------------------- Helpers --------------------
@@ -183,12 +175,37 @@ def safe_extract_reply(resp) -> str:
 
 
 
+
+# ----------------- Models -----------------
+
+class DetectRequest(BaseModel):
+    document: str = Field(..., min_length=1, description="Text to detect for AI content")
+
+class SentenceStats(BaseModel):
+    sentence: str
+    generated_prob: float
+    class_probabilities: Dict[str, float]
+    highlighted: bool
+
+class TextStats(BaseModel):
+    total_sentences: int
+    highlighted_as_ai: int
+    burstiness: Optional[float] = None
+    writing_stats: Dict = {}
+    sentences: Optional[List[SentenceStats]] = None  # New field
+
+class DetectResponse(BaseModel):
+    document: str
+    document_classification: str  # e.g. "AI_ONLY", "HUMAN_ONLY", "MIXED"
+    class_probabilities: dict
+    explanation: str
+    text_stats: TextStats
+    subclass: Optional[dict] = None  # Optional detailed subclass info
+
+# ----------------- Endpoint -----------------
+
 @app.post("/api/detect", response_model=DetectResponse)
 async def detect(req: DetectRequest):
-    """
-    Detects if the given document is AI-generated using GPTZero API v2.
-    Returns classification, probabilities, explanation, and text stats.
-    """
     user_text = req.document.strip()
     if not user_text:
         raise HTTPException(status_code=400, detail="Empty text provided")
@@ -201,43 +218,70 @@ async def detect(req: DetectRequest):
 
     payload = {
         "document": user_text,
-        "detailed": True,       # Request detailed report
-        "explain": True,        # Ask for explanations
-        "max_tokens": 2000,      # Ensure longer texts are fully processed
-        "include": ["explanation", "text_stats", "class_probabilities"]
+        "detailed": True,
+        "include": ["class_probabilities", "sentences", "writing_stats", "subclass"]
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
         try:
-            # Make async request to GPTZero
             resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
 
-            # Safely extract fields
-            classification = data.get("document_classification", "UNKNOWN")
-            probs = data.get("class_probabilities", {})
-            explanation = data.get("explanation") or "No explanation provided"
-            text_stats = data.get("text_stats") or {}
+            logger.info(f"GPTZero raw response: {data}")
 
-            # Log raw response for debugging
-            logger.info(f"GPTZero response: {data}")
+            documents = data.get("documents", [])
+            if not documents:
+                raise HTTPException(status_code=502, detail="Malformed GPTZero response")
+
+            doc = documents[0]
+
+            classification = doc.get("document_classification", "UNKNOWN")
+            probs = doc.get("class_probabilities", {})
+            explanation_text = doc.get("result_message") or "No explanation provided."
+            confidence = doc.get("confidence_score")
+            if confidence is not None:
+                explanation_text += f"\nConfidence Score: {round(confidence * 100, 2)}%"
+
+            sentences_data = doc.get("sentences", [])
+            highlighted_count = sum(1 for s in sentences_data if s.get("highlight_sentence_for_ai"))
+
+            # Build sentence-level stats
+            sentences_stats = [
+                SentenceStats(
+                    sentence=s.get("sentence", ""),
+                    generated_prob=s.get("generated_prob", 0),
+                    class_probabilities=s.get("class_probabilities", {}),
+                    highlighted=s.get("highlight_sentence_for_ai", False)
+                ) for s in sentences_data
+            ]
+
+            text_stats = TextStats(
+                total_sentences=len(sentences_data),
+                highlighted_as_ai=highlighted_count,
+                burstiness=doc.get("overall_burstiness"),
+                writing_stats=doc.get("writing_stats", {}),
+                sentences=sentences_stats
+            )
+
+            # Optional subclass info
+            subclass_info = doc.get("subclass", None)
 
             return DetectResponse(
                 document=user_text,
                 document_classification=classification,
                 class_probabilities=probs,
-                explanation=explanation,
-                text_stats=text_stats
+                explanation=explanation_text,
+                text_stats=text_stats,
+                subclass=subclass_info
             )
 
         except httpx.HTTPError as e:
-            logger.error(f"GPTZero API error: {str(e)} — response: {resp.text if 'resp' in locals() else 'no resp'}")
+            logger.error(f"GPTZero API error: {e} | Response: {resp.text if 'resp' in locals() else 'none'}")
             raise HTTPException(status_code=502, detail="GPTZero API error")
         except Exception as e:
-            logger.exception(f"Unexpected error in /api/detect: {e}")
+            logger.exception(f"Unexpected server error: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
-
 
 
 

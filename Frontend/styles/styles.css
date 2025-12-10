@@ -1113,7 +1113,8 @@ html, body {
 /* Textarea */
 /* ---------------------------- */
 #detect-input {
-  width: 100%;
+  width: 100vw; /* full viewport width */
+  max-width: 100%; /* prevents overflow */
   min-height: 120px;
   padding: 14px;
   font-size: 1rem;
@@ -1121,12 +1122,14 @@ html, body {
   color: #cadcfc;
   background: rgba(0, 36, 107, 0.35);
   border: 1px solid #8ab6f9;
-  border-radius: 12px;
+  border-radius: 4px;
   backdrop-filter: blur(4px);
   resize: vertical;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box; /* includes padding and border in width */
 }
+
 
 #detect-input:focus {
   border-color: #cadcfc;
@@ -1138,10 +1141,11 @@ html, body {
 /* ---------------------------- */
 #run-detection-btn {
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: #8ab6f9;
   color: #00246b;
   border: none;
+  margin-top: 10px;
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
