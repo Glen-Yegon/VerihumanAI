@@ -4,12 +4,16 @@ import httpx  # for async HTTP requests to GPTZero
 import logging
 from pathlib import Path
 from typing import Optional, Any, Dict, List
-
+from openai import OpenAI
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+import logging
+# Make sure you have a logger configured at the top of your file
+logger = logging.getLogger("fastapi_gpt5_backend")
 
 # Dotenv (optional) - loads .env into environment if present
 try:
@@ -24,6 +28,7 @@ try:
     from openai import OpenAI
 except Exception as e:
     raise RuntimeError("Missing 'openai' package. Install with 'pip install openai'.")
+
 
 # -------------------- Configuration --------------------
 API_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-nano")
@@ -53,6 +58,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # If there's a frontend, mount it so you can visit the UI at '/'
 frontend_path = Path(FRONTEND_DIR).resolve()
@@ -175,6 +181,74 @@ def safe_extract_reply(resp) -> str:
 
 
 
+# -------------------- Humanizer Helpers --------------------
+
+def is_too_similar(original: str, rewritten: str) -> bool:
+    """
+    Detects weak humanization by checking similarity.
+    This is intentionally simple and fast.
+    """
+    if not original or not rewritten:
+        return True
+
+    original = original.lower().strip()
+    rewritten = rewritten.lower().strip()
+
+    # Same text or almost same length → suspicious
+    if original == rewritten:
+        return True
+
+    if abs(len(original) - len(rewritten)) < 25:
+        return True
+
+    return False
+
+
+def local_humanize(text: str) -> str:
+    """
+    Local deep humanization fallback.
+    Expands, softens, and humanizes rigid AI-like text.
+    """
+    import random
+
+    starters = [
+        "In simple terms,",
+        "What this really means is that",
+        "From a practical point of view,",
+        "At its core,",
+        "In everyday use,"
+    ]
+
+    connectors = [
+        "As a result,",
+        "Because of this,",
+        "Over time,",
+        "This helps ensure that",
+        "Which ultimately means"
+    ]
+
+    sentences = [s.strip() for s in text.split('.') if s.strip()]
+    if not sentences:
+        return text
+
+    # Single-sentence expansion
+    if len(sentences) == 1:
+        return (
+            f"{random.choice(starters)} {sentences[0].lower()}. "
+            f"{random.choice(connectors)} it feels more natural, balanced, and easier to understand."
+        )
+
+    # Multi-sentence enhancement
+    humanized = []
+    for i, s in enumerate(sentences):
+        if i == 0:
+            humanized.append(f"{random.choice(starters)} {s.lower()}")
+        else:
+            humanized.append(f"{random.choice(connectors)} {s.lower()}")
+
+    return ". ".join(humanized) + "."
+
+
 
 # ----------------- Models -----------------
 
@@ -285,6 +359,50 @@ async def detect(req: DetectRequest):
 
 
 
+class HumanizeRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+
+class HumanizeResponse(BaseModel):
+    humanized_text: str
+
+@app.post("/api/humanize", response_model=HumanizeResponse)
+async def humanize_text(req: HumanizeRequest):
+    HUMANIZER_API_KEY = os.getenv("HUMANIZER_API_KEY")
+    HUMANIZER_URL = "https://humanizerpro.ai/api/v1/humanize"
+
+    payload = {"text": req.text}
+    headers = {
+        "x-api-key": HUMANIZER_API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(HUMANIZER_URL, json=payload, headers=headers)
+
+        data = resp.json()
+        api_text = data.get("humanized_text")
+
+        # ✅ Accept only if meaningfully different
+        if (
+            resp.status_code == 200
+            and api_text
+            and not is_too_similar(req.text, api_text)
+        ):
+            return {"humanized_text": api_text}
+
+        # ⚠️ Weak or identical output → enhance locally
+        enhanced = local_humanize(api_text or req.text)
+        return {"humanized_text": enhanced}
+
+    except Exception:
+        # 🚨 API down → full local humanization
+        logger.warning("HumanizerPro unreachable, using local humanizer")
+        return {"humanized_text": local_humanize(req.text)}
+
+
+
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to VeriHuman API backend 🚀"}
@@ -342,9 +460,6 @@ async def chat(req: ChatRequest):
             f.write(err_text)
         logger.error(err_text)
         raise HTTPException(status_code=502, detail=f"OpenAI error: {str(e)}")
-
-
-
 
 
 

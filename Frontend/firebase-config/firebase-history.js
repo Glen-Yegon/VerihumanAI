@@ -24,62 +24,79 @@ const db = getFirestore(app);
  * @param {string} aiReply
  * @param {boolean} forceNew - if true, create a new chat document instead of appending
  */
-export async function saveChatToHistory(userId, userMessage, aiReply, forceNew = false) {
+// firebase-history.js
+let currentChatDocId = null; // tracks current conversation globally
+
+export async function saveChatToHistory(
+  userId,
+  userMessage,
+  aiReply,
+  forceNew = false,
+  options = {} // { mode: "chat"|"detect"|"humanize", metadata: {} }
+) {
   try {
-    if (!userId) {
-      console.warn("⚠️ No user logged in. Skipping history save.");
-      return;
-    }
+    if (!userId) return;
+
+    const { mode = "chat", metadata = {} } = options;
 
     const historyRef = collection(db, "history", userId, "chats");
-    const title = (userMessage || "").length > 40 ? userMessage.substring(0, 40) + "..." : userMessage;
+    const title =
+      (userMessage || "").length > 40
+        ? userMessage.substring(0, 40) + "..."
+        : userMessage || "Conversation";
 
-    if (forceNew) {
-      await addDoc(historyRef, {
+    const messageEntry = {
+      sender: "user",
+      text: userMessage,
+      timestamp: new Date().toISOString(),
+      mode,
+      metadata,
+    };
+
+    const aiMessageEntry = {
+      sender: "ai",
+      text: aiReply,
+      timestamp: new Date().toISOString(),
+      mode,
+      metadata,
+    };
+
+    // 🔹 Force a new conversation or if no current doc
+    if (forceNew || !currentChatDocId) {
+      const docRef = await addDoc(historyRef, {
         title,
-        messages: [
-          { sender: "user", text: userMessage, timestamp: new Date().toISOString() },
-          { sender: "ai", text: aiReply, timestamp: new Date().toISOString() },
-        ],
+        messages: [messageEntry, aiMessageEntry],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        lastMode: mode,
       });
-      console.log("✨ New conversation created!");
+      currentChatDocId = docRef.id;
+      console.log("✨ New conversation created with ID:", currentChatDocId);
       return;
     }
 
-    const q = query(historyRef, orderBy("createdAt", "desc"), limit(1));
-    const snapshot = await getDocs(q);
+    // 🔹 Append to existing conversation
+    const docRef = doc(db, "history", userId, "chats", currentChatDocId);
+    const docSnap = await getDoc(docRef);
+    const oldMessages = docSnap.exists() ? docSnap.data().messages || [] : [];
 
-    if (!snapshot.empty) {
-      const lastChat = snapshot.docs[0];
-      const lastData = lastChat.data() || {};
-      const oldMessages = Array.isArray(lastData.messages) ? lastData.messages : [];
-      await updateDoc(doc(historyRef, lastChat.id), {
-        messages: [
-          ...oldMessages,
-          { sender: "user", text: userMessage, timestamp: new Date().toISOString() },
-          { sender: "ai", text: aiReply, timestamp: new Date().toISOString() },
-        ],
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      await addDoc(historyRef, {
-        title,
-        messages: [
-          { sender: "user", text: userMessage, timestamp: new Date().toISOString() },
-          { sender: "ai", text: aiReply, timestamp: new Date().toISOString() },
-        ],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
+    await updateDoc(docRef, {
+      messages: [...oldMessages, messageEntry, aiMessageEntry],
+      updatedAt: serverTimestamp(),
+      lastMode: mode,
+    });
 
-    console.log("✅ Chat saved successfully!");
+    console.log("✅ Chat appended successfully to doc ID:", currentChatDocId);
   } catch (err) {
     console.error("🔥 Error saving chat:", err);
   }
 }
+
+// Optional helper to reset current chat when starting a new conversation
+export function resetCurrentChatDoc() {
+  currentChatDocId = null;
+}
+
 
 /**
  * Get latest conversation messages for a user (most recent chat doc)
