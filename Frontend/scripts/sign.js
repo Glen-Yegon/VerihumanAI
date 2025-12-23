@@ -5,6 +5,7 @@ const signupOnlyFields = document.querySelectorAll(".signup-only");
 
 let isSignup = true;
 
+
 toggleLink.addEventListener("click", () => {
     isSignup = !isSignup;
 

@@ -4,7 +4,7 @@ const profilePhoto = document.getElementById("profile-photo");
 
 const signupMethodEl = document.getElementById("signup-method");
 const paymentPackageEl = document.getElementById("payment-package");
-const creditsUsedEl = document.getElementById("credits-used");
+
 
 const paymentBtn = document.getElementById("payment-cta");
 const logoutBtn = document.getElementById("logout-btn");
@@ -38,11 +38,12 @@ window.addEventListener("load", () => {
   }
 
   // Load dummy data for demo - replace with your real user data fetch
-  signupMethodEl.textContent = sessionStorage.getItem("signupMethod") || "Email";
+  //signupMethodEl.textContent = sessionStorage.getItem("signupMethod") || "Email";
   paymentPackageEl.textContent = sessionStorage.getItem("paymentPackage") || "Basic (Configure Later)";
-  creditsUsedEl.textContent = sessionStorage.getItem("creditsUsed") || "0 (Configure Later)";
+
+
   profilePhoto.alt = sessionStorage.getItem("profileName") || "User Profile Photo";
-  document.getElementById("profile-name").textContent = sessionStorage.getItem("profileName") || "Anonymous User";
+  //document.getElementById("profile-name").textContent = sessionStorage.getItem("profileName") || "Anonymous User";
 });
 
 // Payment button handler
@@ -75,23 +76,6 @@ window.onload = () => {
     statusEl.style.color = "#d50000"; // red for inactive
   }
 };
-
-
-const photoUpload = document.getElementById('photo-upload');
-photoUpload.addEventListener('change', () => {
-  const file = photoUpload.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    const imageDataUrl = reader.result;
-    // Update the profile photo immediately
-    profilePhoto.src = imageDataUrl;
-    // Save to sessionStorage for other pages
-    sessionStorage.setItem('profilePhoto', imageDataUrl);
-  };
-  reader.readAsDataURL(file);
-});
 
 
 function scrambleText(element, finalText, totalDuration = 5000) {

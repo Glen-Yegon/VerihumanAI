@@ -1437,3 +1437,67 @@ html, body {
   display: block;
   stroke: #fff; /* arrow color */
 }
+
+
+
+.credits-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 36, 107, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.credits-modal.hidden {
+  display: none;
+}
+
+.credits-card {
+  background: #00246b;
+  color: #cadcfc;
+  max-width: 420px;
+  width: 100%;
+  padding: 24px;
+  border-radius: 18px;
+  text-align: center;
+  font-family: "Exo 2", "Inter", sans-serif;
+  box-shadow: 0 0 40px rgba(138, 182, 249, 0.4);
+}
+
+.credits-card h2 {
+  margin-bottom: 10px;
+  font-size: 1.6rem;
+}
+
+.credits-card p {
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.credits-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.pay-btn {
+  background: linear-gradient(135deg, #cadcfc, #8ab6f9);
+  color: #00246b;
+  padding: 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.close-btn {
+  background: transparent;
+  border: 1px solid #8ab6f9;
+  color: #cadcfc;
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}

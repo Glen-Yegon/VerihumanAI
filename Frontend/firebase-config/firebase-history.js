@@ -112,8 +112,9 @@ export async function getLatestChat(userId) {
     const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
-      const lastChat = snapshot.docs[0].data();
-      return lastChat.messages || [];
+      const lastDoc = snapshot.docs[0];
+      currentChatDocId = lastDoc.id;  // 🔹 track the current chat globally
+      return lastDoc.data().messages || [];
     }
 
     return null;
@@ -122,6 +123,7 @@ export async function getLatestChat(userId) {
     return null;
   }
 }
+
 
 /**
  * Save full chat session (when starting new chat or saving explicitly)

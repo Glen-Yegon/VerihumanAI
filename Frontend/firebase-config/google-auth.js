@@ -19,8 +19,8 @@ async function handleGoogleSignIn() {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // Save or update user record in Firestore
-    await setDoc(doc(db, "signup", user.uid), {
+    // ✅ Save/update user in "users" collection (matches Firestore rules)
+    await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       email: user.email,
       name: user.displayName || "Anonymous User",
@@ -33,7 +33,7 @@ async function handleGoogleSignIn() {
     sessionStorage.setItem("userUID", user.uid);
     sessionStorage.setItem("userEmail", user.email);
 
-    // Friendly popup message (if your popup function exists)
+    // Friendly popup or redirect
     if (window.showPopup) {
       showPopup("🎉 Google Sign-In successful! Welcome to VeriHuman.", 3000, "index.html");
     } else {
@@ -46,5 +46,5 @@ async function handleGoogleSignIn() {
   }
 }
 
-// Attach the click listener to your Google button
+// Attach click listener
 document.getElementById("google-btn").addEventListener("click", handleGoogleSignIn);
