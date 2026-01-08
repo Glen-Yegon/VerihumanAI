@@ -33,9 +33,9 @@ except Exception as e:
 # -------------------- Configuration --------------------
 API_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-nano")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../frontend")  # relative path from backend folder
-# GPTZero API key
-GPTZERO_API_KEY = os.getenv("GPTZERO_API_KEY", "6b5169ab9fb34fa285c6c83094f45d9d")  # replace with your key or use env
+FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../Frontend")  # relative path from backend folder
+GPTZERO_API_KEY = os.getenv("GPTZERO_API_KEY")
+
 
 # Basic logging
 logging.basicConfig(level=logging.INFO)
