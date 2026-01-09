@@ -6,9 +6,9 @@
     { "src": "pay.html", "use": "@vercel/static" },
     { "src": "profile.html", "use": "@vercel/static" },
     { "src": "sign.html", "use": "@vercel/static" },
-    { "src": "./styles/**", "use": "@vercel/static" },
-    { "src": "./Images/**", "use": "@vercel/static" },
-    { "src": "./scripts/**", "use": "@vercel/static" },
+    { "src": "styles/**", "use": "@vercel/static" },
+    { "src": "Images/**", "use": "@vercel/static" },
+    { "src": "scripts/**", "use": "@vercel/static" },
     { "src": "site.webmanifest", "use": "@vercel/static" },
     { "src": "favicon.ico", "use": "@vercel/static" },
     { "src": "apple-touch-icon.png", "use": "@vercel/static" }
@@ -42,7 +42,7 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://cdnjs.cloudflare.com; script-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.openai.com https://humanizerpro.ai https://api.gptzero.me;"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com; script-src-elem 'self' 'unsafe-inline' https://www.googletagmanager.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.openai.com https://humanizerpro.ai https://api.gptzero.me;"
         },
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
       ]
