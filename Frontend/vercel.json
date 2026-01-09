@@ -2,61 +2,26 @@
   "version": 2,
   "name": "verihuman",
   "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "pay.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "profile.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "sign.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "styles/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "Images/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "scripts/**",
-      "use": "@vercel/static"
-    }
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "pay.html", "use": "@vercel/static" },
+    { "src": "profile.html", "use": "@vercel/static" },
+    { "src": "sign.html", "use": "@vercel/static" },
+    { "src": "styles/**", "use": "@vercel/static" },
+    { "src": "Images/**", "use": "@vercel/static" },
+    { "src": "scripts/**", "use": "@vercel/static" }
   ],
-  "routes": [
-    {
-      "src": "/index",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/pay",
-      "dest": "/pay.html"
-    },
-    {
-      "src": "/profile",
-      "dest": "/profile.html"
-    },
-    {
-      "src": "/sign",
-      "dest": "/sign.html"
-    },
-    {
-      "src": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|mp4|webm|ogg)$",
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
-      },
-      "dest": "/$1.$2"
-    }
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/", "destination": "/index" }
   ],
   "headers": [
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|mp4|webm|ogg)$",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
+    },
     {
       "source": "/(.*)",
       "headers": [
@@ -67,10 +32,5 @@
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
       ]
     }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    { "source": "/", "destination": "/index" }
   ]
 }
