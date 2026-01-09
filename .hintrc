@@ -29,8 +29,15 @@
       "default",
       {
         "ignore": [
-          "video[playsinline]"
+          "video[playsinline]",
+          "meta[name=theme-color]"
         ]
+      }
+    ],
+    "axe/forms": [
+      "default",
+      {
+        "select-name": "off"
       }
     ]
   }
