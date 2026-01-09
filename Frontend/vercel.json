@@ -6,9 +6,9 @@
     { "src": "pay.html", "use": "@vercel/static" },
     { "src": "profile.html", "use": "@vercel/static" },
     { "src": "sign.html", "use": "@vercel/static" },
-    { "src": "styles/**", "use": "@vercel/static" },
-    { "src": "images/**", "use": "@vercel/static" },
-    { "src": "scripts/**", "use": "@vercel/static" },
+    { "src": "./styles/**", "use": "@vercel/static" },
+    { "src": "./Images/**", "use": "@vercel/static" },
+    { "src": "./scripts/**", "use": "@vercel/static" },
     { "src": "site.webmanifest", "use": "@vercel/static" },
     { "src": "favicon.ico", "use": "@vercel/static" },
     { "src": "apple-touch-icon.png", "use": "@vercel/static" }
