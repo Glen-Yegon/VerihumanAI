@@ -2,6 +2,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const loaderWrapper = document.getElementById("loader-wrapper");
   const mainContent = document.getElementById("main-content");
 
+  // Check if loader has already been shown in this session
+  const loaderShown = sessionStorage.getItem("loaderShown");
+
+  if (loaderShown) {
+    // Loader already shown → skip it
+    loaderWrapper.style.display = "none";
+    mainContent.style.display = "block";
+    return;
+  }
+
+  // Mark loader as shown for this session
+  sessionStorage.setItem("loaderShown", "true");
+
   // Show main content after loader disappears
   setTimeout(() => {
     // Fade out loader

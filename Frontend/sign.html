@@ -33,14 +33,14 @@
     <meta property="og:description" content="Sign up or log in to Verihuman AI. Access AI text humanizer and AI detection tools securely and instantly.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://verihumanai.com/sign.html">
-    <meta property="og:image" content="https://verihumanai.com/Images/vERIHUMAN (8).png">
+    <meta property="og:image" content="https://verihumanai.com/Imagesveri-logo.png">
     <meta property="og:site_name" content="Verihuman AI">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Verihuman - Sign Up / Login">
     <meta name="twitter:description" content="Sign up or log in to Verihuman AI. Access AI text humanizer and AI detection tools securely and instantly.">
-    <meta name="twitter:image" content="https://verihumanai.com/Images/vERIHUMAN (8).png">
+    <meta name="twitter:image" content="https://verihumanai.com/Images/veri-logo.png">
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -52,6 +52,38 @@
       "description": "Sign up or log in to Verihuman AI. Access AI text humanizer and AI detection tools securely and instantly."
     }
     </script>
+
+    <script>
+  (function () {
+    const loaderShown = sessionStorage.getItem("loaderShown");
+
+    if (!loaderShown) {
+      document.documentElement.classList.add("show-loader");
+    } else {
+      document.documentElement.classList.add("skip-loader");
+    }
+  })();
+</script>
+
+<style>
+  /* Default: hide everything to prevent white flash */
+  #loader-wrapper,
+  #main-content {
+    display: none;
+  }
+
+  /* If loader should show */
+  html.show-loader #loader-wrapper {
+    display: flex;
+  }
+
+  /* If loader should be skipped */
+  html.skip-loader #main-content {
+    display: block;
+  }
+</style>
+
+
 </head>
 
 <body>
@@ -98,7 +130,7 @@
     <div class="auth-box">
         
         <!-- Logo -->
-        <img src="Images/vERIHUMAN (6).png" alt="Verihuman Logo" class="logo">
+        <img src="Images/veri.png" alt="Verihuman Logo" class="logo">
 
         <!-- Form Title -->
         <h2 id="form-title">Create Your Account</h2>
