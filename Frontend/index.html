@@ -19,7 +19,7 @@
     <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Theme Color -->
-    <meta name="theme-color" content="#00246b"> <!-- You can adjust to match your brand color -->
+    <meta name="theme-color" content="#00246b">
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="styles/styles.css">
@@ -161,14 +161,21 @@
   <span class="icon-label">History</span>
 </div>
 
-    <!-- Search Icon -->
-    <div class="icon-btn" title="Search">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24">
-        <circle cx="11" cy="11" r="7" stroke="black" stroke-width="2" fill="none"/>
-        <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="black" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span class="icon-label">Search</span>
-    </div>
+<!-- Search Wrapper -->
+<div class="icon-btn search-wrapper" id="searchWrapper" title="Search">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="black" viewBox="0 0 24 24" class="search-icon">
+    <circle cx="11" cy="11" r="7" stroke="black" stroke-width="2" fill="none"/>
+    <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="black" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+   <span class="icon-label">Search</span>
+
+  <!-- Search bar (hidden initially) -->
+  <div class="search-bar" id="searchBar">
+    <input type="text" id="searchInput" placeholder="Search chats...">
+    <button id="closeSearchBtn">&times;</button>
+  </div>
+</div>
+
 
     <!-- Expand/Collapse Menu Button -->
     <div class="icon-btn toggle-btn" id="sidebarToggle" title="Expand Menu">
@@ -393,9 +400,21 @@
   </div>
 </div>
 
+
 </div>
 
 
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="delete-modal">
+  <div class="delete-modal-content">
+    <h3>Delete Chat?</h3>
+    <p>This action cannot be undone.</p>
+    <div class="delete-modal-actions">
+      <button id="cancelDeleteBtn">Cancel</button>
+      <button id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
 
 <div id="credits-modal" class="credits-modal hidden">
   <div class="credits-card">
@@ -1326,7 +1345,9 @@ async function startNewChat() {
   
   const msg = document.createElement("div");
   msg.className = "new-chat-banner";
-  msg.textContent = "✨ New Chat Started";
+msg.textContent = "🔹 New Conversation Started 🔹";
+msg.style.color = "#ffffff"; // ensures the text is white
+
   chatContainer.appendChild(msg);
 
   detectInput.value = "";
@@ -1349,8 +1370,12 @@ async function startNewChat() {
   window.scrollToBottom = scrollToBottom;
 
 
+
+
   // Start app
   init();
+
+
 
 </script>
 

@@ -128,6 +128,77 @@ html, body {
     gap: 20px;
 }
 
+/* ============================
+   Search bar in sidebar
+============================ */
+/* Hide the label when search is active */
+.search-wrapper.active .icon-label {
+  display: none;
+}
+
+.search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.search-wrapper .search-icon {
+  transition: opacity 0.2s ease;
+}
+
+.search-bar {
+  display: none;
+  align-items: center;
+  background: transparent; /* brand color */
+  border-radius: 4px;
+  padding: 2px 4px;
+  gap: 6px;
+  width: 100%;
+}
+
+.search-bar input {
+  flex: 1;
+  background: #cadcfc; /* light bg for input */
+  border: none;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.search-bar button {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #000000;
+}
+
+/* Active state */
+.search-wrapper.active .search-icon {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-wrapper.active .search-bar {
+  display: flex;
+}
+
+/* Small screens adjustments */
+@media (max-width: 768px) {
+  .search-bar input {
+    font-size: 0.85rem;
+    padding: 5px 6px;
+  }
+
+  .search-bar button {
+    font-size: 1rem;
+  }
+}
+
 
 
 .logo {
@@ -922,6 +993,8 @@ html, body {
 .chat-item.active {
   animation: glowPulse 2s infinite ease-in-out;
 }
+
+
 /* ============================= */
 /*   HISTORY MODAL STYLING       */
 /* ============================= */
@@ -1035,14 +1108,169 @@ html, body {
   box-shadow: 0 0 10px rgba(138, 182, 249, 0.3);
 }
 
+/* Active chat item - minimalistic design */
 .history-modal-item.active {
-  background: linear-gradient(90deg, #00246b, #8ab6f9);
-  color: white;
-  font-weight: 600;
-  transform: scale(1.03);
-  box-shadow: 0 0 12px rgba(138, 182, 249, 0.5);
-  animation: glowPulse 2s infinite ease-in-out;
+  background: rgba(138, 182, 249, 0.2); /* subtle highlight */
+  color: #00246b; /* primary brand color for text */
+  font-weight: 500;
+  transform: scale(1.02); /* slight pop effect */
+  box-shadow: 0 2px 6px rgba(0, 36, 107, 0.2); /* soft shadow */
+  border: 1px solid rgba(138, 182, 249, 0.4); /* light border for focus */
+  transition: all 0.3s ease;
 }
+
+
+/* Delete button in history item */
+.history-delete-btn {
+  margin-left: 20px;
+  background: transparent;
+  border: none;
+  color: #ff4d4d;
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 99999 !important;
+}
+
+/* ================================
+   Delete Confirmation Modal
+   Futuristic / Mobile-First
+================================ */
+
+.delete-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 36, 107, 0.45); /* brand-tinted overlay */
+  -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 16px;
+}
+
+.delete-modal.active {
+  display: flex;
+}
+
+/* Modal Card */
+.delete-modal-content {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(
+    145deg,
+    #00246b 0%,
+    #001b4d 100%
+  );
+  border-radius: 18px;
+  padding: 24px 22px;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(138, 182, 249, 0.25);
+  text-align: center;
+  animation: modalPop 0.25s ease-out;
+}
+
+/* Title */
+.delete-modal-content h3 {
+  font-family: "Exo 2", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #cadcfc;
+  margin-bottom: 10px;
+  letter-spacing: 0.4px;
+}
+
+/* Message */
+.delete-modal-content p {
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(202, 220, 252, 0.85);
+  margin-bottom: 22px;
+}
+
+/* Actions */
+.delete-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Buttons */
+.delete-modal-actions button {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 12px;
+  border: none;
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Cancel Button */
+#cancelDeleteBtn {
+  background: transparent;
+  color: #cadcfc;
+  border: 1px solid rgba(138, 182, 249, 0.4);
+}
+
+#cancelDeleteBtn:hover {
+  background: rgba(138, 182, 249, 0.12);
+}
+
+/* Delete Button */
+#confirmDeleteBtn {
+  background: linear-gradient(
+    135deg,
+    #8ab6f9 0%,
+    #5a8fe6 100%
+  );
+  color: #00246b;
+  box-shadow: 0 8px 18px rgba(138, 182, 249, 0.35);
+}
+
+#confirmDeleteBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(138, 182, 249, 0.45);
+}
+
+/* Touch optimization */
+@media (hover: none) {
+  #confirmDeleteBtn:hover,
+  #cancelDeleteBtn:hover {
+    transform: none;
+  }
+}
+
+/* Animation */
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Larger screens refinement */
+@media (min-width: 768px) {
+  .delete-modal-content {
+    padding: 28px 26px;
+  }
+
+  .delete-modal-content h3 {
+    font-size: 1.25rem;
+  }
+
+  .delete-modal-content p {
+    font-size: 1rem;
+  }
+}
+
 
 /* Reuse the same glow animation but scoped */
 @keyframes glowPulse {

@@ -1,4 +1,5 @@
 import { getAllChats, getChatById } from "../firebase-config/firebase-history.js";
+import { deleteChatHistory } from "../firebase-config/firebase-history.js";
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -153,35 +154,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // === Load chat history from Firestore ===
-  async function loadChatHistory() {
-    const userUID = sessionStorage.getItem("userUID");
-    if (!userUID) return;
+// === Load chat history from Firestore ===
+async function loadChatHistory() {
+  const userUID = sessionStorage.getItem("userUID");
+  if (!userUID) return;
 
-    const chats = await getAllChats(userUID); // 👈 from firebase-history.js
-    chatHistoryList.innerHTML = "";
+  const chats = await getAllChats(userUID); // from firebase-history.js
+  allChats = chats; // store all chats for search filtering
 
-    if (!chats || chats.length === 0) {
-      chatHistoryList.innerHTML =
-        "<p style='padding:10px;color:gray;'>No conversations yet</p>";
-      return;
-    }
+  chatHistoryList.innerHTML = "";
 
-    chats.forEach((chat) => {
-      const div = document.createElement("div");
-      div.classList.add("chat-item");
-      div.dataset.chatId = chat.id;
-      div.textContent = chat.title || "Untitled Chat";
-
-      if (chat.id === window.currentChatId) div.classList.add("active");
-
-div.dataset.id = chat.id;
-div.addEventListener("click", () => loadChatIntoContainer(chat.id));
-
-
-      chatHistoryList.appendChild(div);
-    });
+  if (!chats || chats.length === 0) {
+    chatHistoryList.innerHTML =
+      "<p style='padding:10px;color:gray;'>No conversations yet</p>";
+    return;
   }
+
+  chats.forEach((chat) => {
+    const div = document.createElement("div");
+    div.classList.add("chat-item");
+    div.dataset.chatId = chat.id;
+    div.textContent = chat.title || "Untitled Chat";
+
+    div.addEventListener("click", () => loadChatIntoContainer(chat.id));
+
+    chatHistoryList.appendChild(div);
+  });
+}
 
 // if using module imports:
 // import { getChatById } from './firebase-history.js';
@@ -254,6 +253,9 @@ async function loadChatIntoContainer(chatId) {
   // scroll to bottom
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
+
+window.loadChatIntoContainer = loadChatIntoContainer;
+
 
 
 
@@ -344,11 +346,17 @@ chatInput.addEventListener("keydown", (e) => {
     });
   });
 
-  
+
+let chatIdPendingDelete = null;
+
 const historyBtn = document.getElementById('historyBtn');
 const chatHistoryModal = document.getElementById('chatHistoryModal');
 const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 const chatHistoryListModal = document.getElementById('chatHistoryListModal');
+const deleteConfirmModal = document.getElementById("deleteConfirmModal");
+const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+
 
 if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
   // Open Modal
@@ -379,7 +387,10 @@ if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
       chats.forEach(chat => {
         const div = document.createElement('div');
         div.classList.add('history-modal-item'); // ✅ unique to modal (no conflict)
-        div.textContent = chat.title || 'Untitled Chat';
+        const titleSpan = document.createElement("span");
+titleSpan.textContent = chat.title || "Untitled Chat";
+div.appendChild(titleSpan);
+
         div.dataset.id = chat.id;
 
         // Highlight currently open chat (optional)
@@ -397,6 +408,19 @@ if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
           // Close modal after selection (especially for mobile)
           chatHistoryModal.classList.remove('active');
         });
+
+        const deleteBtn = document.createElement("button");
+deleteBtn.innerHTML = "🗑";
+deleteBtn.classList.add("history-delete-btn");
+
+deleteBtn.addEventListener("click", (e) => {
+  e.stopPropagation(); // prevent opening chat
+  chatIdPendingDelete = chat.id;
+  deleteConfirmModal.classList.add("active");
+});
+
+div.appendChild(deleteBtn);
+
 
         chatHistoryListModal.appendChild(div);
       });
@@ -417,6 +441,99 @@ if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
       chatHistoryModal.classList.remove('active');
     }
   });
+
+  cancelDeleteBtn.addEventListener("click", () => {
+  chatIdPendingDelete = null;
+  deleteConfirmModal.classList.remove("active");
+});
+
+confirmDeleteBtn.addEventListener("click", async () => {
+  if (!chatIdPendingDelete) return;
+
+  const userUID = sessionStorage.getItem("userUID");
+  await deleteChatHistory(userUID, chatIdPendingDelete);
+
+  // Cleanup if current chat was deleted
+  if (sessionStorage.getItem("currentChatId") === chatIdPendingDelete) {
+    sessionStorage.removeItem("currentChatId");
+  }
+
+  chatIdPendingDelete = null;
+  deleteConfirmModal.classList.remove("active");
+
+  // Refresh history UI
+  historyBtn.click();
+});
+
 }
 
+// DOM Elements
+const searchWrapper = document.getElementById("searchWrapper");
+const searchBar = document.getElementById("searchBar");
+const searchInput = document.getElementById("searchInput");
+const closeSearchBtn = document.getElementById("closeSearchBtn");
+const chatHistoryList = document.getElementById("chatHistoryList"); // your history container
 
+// Keep a backup of all chats
+let allChats = []; // will populate after fetching chat history
+
+// Initialize search after loading chats
+function initializeSearch(chats) {
+  allChats = chats; // store original list
+  renderChatList(allChats);
+}
+
+// Filter function
+function filterChats(query) {
+  const filtered = allChats.filter(chat =>
+    chat.title.toLowerCase().includes(query.toLowerCase())
+  );
+  renderChatList(filtered);
+}
+
+// Render chat list (reusable)
+function renderChatList(chats) {
+  chatHistoryList.innerHTML = "";
+
+  if (!chats.length) {
+    chatHistoryList.innerHTML = `<p style="padding:10px;color:gray;">No chats found</p>`;
+    return;
+  }
+
+  chats.forEach((chat) => {
+    const div = document.createElement("div");
+    div.classList.add("chat-item"); 
+    div.dataset.chatId = chat.id;
+    div.textContent = chat.title || "Untitled Chat";
+
+    // Click handler
+    div.addEventListener("click", () => loadChatIntoContainer(chat.id));
+
+    chatHistoryList.appendChild(div);
+  });
+}
+
+// -------------------
+// EVENT LISTENERS
+// -------------------
+
+// Open search bar
+searchWrapper.addEventListener("click", (e) => {
+  if (!searchWrapper.classList.contains("active")) {
+    searchWrapper.classList.add("active");
+    searchInput.focus();
+  }
+});
+
+// Close search bar
+closeSearchBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  searchWrapper.classList.remove("active");
+  searchInput.value = "";
+  renderChatList(allChats); // reset to full list
+});
+
+// Live filter as user types
+searchInput.addEventListener("input", (e) => {
+  filterChats(e.target.value);
+});

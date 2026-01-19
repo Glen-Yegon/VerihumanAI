@@ -13,6 +13,7 @@ import {
   limit,
   getDocs,
   serverTimestamp,
+    deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 const db = getFirestore(app);
@@ -201,3 +202,15 @@ export async function getChatById(userUID, chatId) {
   }
 }
 
+
+export async function deleteChatHistory(userUID, chatId) {
+  if (!userUID || !chatId) return;
+
+  try {
+    const chatRef = doc(db, "history", userUID, "chats", chatId);
+    await deleteDoc(chatRef);
+    console.log("🗑 Chat deleted:", chatId);
+  } catch (err) {
+    console.error("❌ Failed to delete chat:", err);
+  }
+}
