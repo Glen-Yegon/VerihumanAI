@@ -374,11 +374,12 @@
 
 
 
-<!-- Matrix-style AI Background -->
+<!-- 
 <canvas id="matrixCanvas"></canvas>
 <div class="overlay"></div>
-
-
+Matrix-style AI Background -->
+<!-- Particles Background -->
+<div id="particles-js"></div>
 
 </main>
 
@@ -432,6 +433,18 @@
 </div>
 
 
+<!-- Sign-in Required Modal -->
+<div id="auth-modal" class="auth-modal hidden">
+  <div class="auth-modal-content">
+    <h3>Sign in required</h3>
+    <p>You need to sign in before using VeriHuman AI features.</p>
+
+    <div class="auth-modal-actions">
+      <button id="go-signin-btn">Sign In</button>
+      <button id="close-auth-modal" class="secondary">Cancel</button>
+    </div>
+  </div>
+</div>
 
   
 
@@ -439,23 +452,108 @@
     <script src="scripts/loading-screen.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+particlesJS("particles-js", {
+    particles: {
+        number: { 
+            value: 200,  // way more particles
+            density: { enable: true, value_area: 800 }
+        },
+        color: { value: "#8ab6f9" },
+        shape: { type: "circle" },
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: {
+            enable: true,
+            distance: 150,
+            color: "#8ab6f9",
+            opacity: 0.3,
+            width: 1
+        },
+        move: {
+            enable: true,
+            speed: 2,
+            direction: "none",
+            random: true,
+            straight: false,
+            out_mode: "out",
+            bounce: false
+        }
+    },
+    interactivity: {
+        detect_on: "canvas",
+        events: {
+            onhover: { enable: true, mode: "repulse" },
+            onclick: { enable: true, mode: "push" },
+            resize: true
+        },
+        modes: {
+            repulse: { distance: 100, duration: 0.4 },
+            push: { particles_nb: 4 }
+        }
+    },
+    retina_detect: true
+});
+
+</script>
 
     <script>
-      window.onload = () => {
-  const userUID = sessionStorage.getItem("userUID");
-  const userEmail = sessionStorage.getItem("userEmail");
+function isUserLoggedIn() {
+  return (
+    sessionStorage.getItem("userUID") &&
+    sessionStorage.getItem("userEmail")
+  );
+}
 
-  if (userUID && userEmail) {
-    console.log("User is logged in:", userEmail);
-    // Update UI to show logged-in state
-    // e.g., show user profile, logout button, etc.
-  } else {
-    console.log("User is not logged in.");
-    // Redirect to login page or show login form
-     window.location.href = "sign.html";
-  }
+function showAuthModal() {
+  document.getElementById("auth-modal").classList.remove("hidden");
+}
+
+function hideAuthModal() {
+  document.getElementById("auth-modal").classList.add("hidden");
+}
+
+document.getElementById("close-auth-modal").onclick = hideAuthModal;
+
+document.getElementById("go-signin-btn").onclick = () => {
+  window.location.href = "sign.html";
 };
-    </script>
+</script>
+
+<script>
+document.getElementById("chatForm").addEventListener("submit", (e) => {
+  if (!isUserLoggedIn()) {
+    e.preventDefault();
+    showAuthModal();
+    return;
+  }
+
+  // user is logged in → continue sending message
+});
+</script>
+
+<script>
+document.getElementById("run-humanizer-btn").addEventListener("click", () => {
+  if (!isUserLoggedIn()) {
+    showAuthModal();
+    return;
+  }
+
+  // run humanizer logic
+});
+</script>
+
+<script>
+document.getElementById("run-detection-btn").addEventListener("click", () => {
+  if (!isUserLoggedIn()) {
+    showAuthModal();
+    return;
+  }
+
+  // run detection logic
+});
+</script>
 
 
 <script>
@@ -1378,50 +1476,6 @@ msg.style.color = "#ffffff"; // ensures the text is white
 
 
 </script>
-
-
-
-
-<script>
-// Block all reloads, navigations, and form submissions
-(function() {
-  // Prevent page reload via F5, Ctrl+R, Command+R
-  window.addEventListener("keydown", function(e) {
-    if (
-      e.key === "F5" ||
-      (e.ctrlKey && e.key === "r") ||
-      (e.metaKey && e.key === "r")
-    ) {
-      e.preventDefault();
-      console.log("Page reload blocked!");
-    }
-  });
-
-  // Prevent form submissions from reloading the page
-  document.addEventListener("submit", function(e) {
-    e.preventDefault();
-    console.log("Form submission blocked!");
-  });
-
-  // Prevent any programmatic reload/navigation
-  const originalReload = window.location.reload;
-  window.location.reload = function() {
-    console.log("Reload blocked!");
-  };
-
-  const originalAssign = window.location.assign;
-  window.location.assign = function() {
-    console.log("Navigation blocked!");
-  };
-
-  const originalReplace = window.location.replace;
-  window.location.replace = function() {
-    console.log("Navigation blocked!");
-  };
-
-})();
-</script>
-
 
 <script>
 (function(){
