@@ -338,3 +338,133 @@ h2 {
     padding: 10px;
   }
 }
+
+.form-trust {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(138, 182, 249, 0.25);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.form-disclaimer {
+  font-size: 0.85rem;
+  color: #b6c9f0;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.form-privacy {
+  font-size: 0.8rem;
+  color: #9fb6e8;
+}
+
+.form-privacy a {
+  color: #8ab6f9;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.form-privacy a:hover {
+  text-decoration: underline;
+}
+
+
+/* Footer */
+.footer {
+  width: 100%;
+  padding: 3rem 1.5rem 2rem;
+  background: rgba(0, 0, 0, 0.85); /* black translucent */
+  color: #cadcfc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.footer-logo img {
+  width: 120px;
+  margin-bottom: 1rem;
+  transform: scale(1.5);
+}
+
+.footer-divider {
+  width: 60%;
+  border: none;
+  height: 1px;
+  background: rgba(138, 182, 249, 0.3);
+  margin: 1rem 0;
+}
+
+.footer-social a {
+  margin: 0 0.8rem;
+  font-size: 1.2rem;
+  color: #8ab6f9;
+  transition: transform 0.3s, color 0.3s;
+}
+
+.footer-social a:hover {
+  transform: scale(1.2);
+  color: #cadcfc;
+}
+
+.footer-contact {
+  font-size: 0.95rem;
+  color: rgba(202, 220, 252, 0.85);
+}
+
+.footer-contact a {
+  color: #cadcfc;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.footer-contact a:hover {
+  color: #8ab6f9;
+}
+
+.footer-contact span {
+  margin: 0 0.5rem;
+  color: rgba(202, 220, 252, 0.5);
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-size: 0.9rem;
+  color: #cadcfc;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.footer-links a:hover {
+  color: #8ab6f9;
+}
+
+.footer-copy {
+  font-size: 0.8rem;
+  color: rgba(202, 220, 252, 0.6);
+  margin-top: 0.5rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+  .footer-divider {
+    width: 80%;
+  }
+
+  .footer-social a {
+    margin: 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  .footer-links {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+}
