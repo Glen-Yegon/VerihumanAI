@@ -172,60 +172,90 @@
       </p>
     </div>
 
-    <!-- Support Form -->
-    <form class="support-form">
+<!-- Support Form -->
+<form
+  class="support-form"
+  method="post"
+  action="#"
+  autocomplete="off"
+  novalidate
+>
 
-      <div class="form-grid">
+  <div class="form-grid">
 
-        <div class="form-group">
-          <label for="name">Full Name</label>
-          <input type="text" id="name" placeholder="Your name" required />
-        </div>
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        placeholder="Your name"
+        required
+      />
+    </div>
 
-        <div class="form-group">
-          <label for="email">Email Address</label>
-          <input type="email" id="email" placeholder="you@example.com" required />
-        </div>
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="you@example.com"
+        required
+      />
+    </div>
 
-        <div class="form-group">
-          <label for="type">How can we help?</label>
-          <select id="type" required>
-            <option value="">Select an option</option>
-            <option value="contact">General inquiry</option>
-            <option value="report">Report an issue</option>
-            <option value="account">Account-related</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
+    <div class="form-group">
+      <label for="type">How can we help?</label>
+      <select id="type" name="type" required>
+        <option value="">Select an option</option>
+        <option value="general">General inquiry</option>
+        <option value="issue">Report a technical issue</option>
+        <option value="usage">Usage question</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
 
-        <div class="form-group">
-          <label for="priority">Urgency (optional)</label>
-          <select id="priority">
-            <option value="">Normal</option>
-            <option value="low">Low</option>
-            <option value="high">High</option>
-          </select>
-        </div>
+    <div class="form-group">
+      <label for="priority">Urgency (optional)</label>
+      <select id="priority" name="priority">
+        <option value="">Normal</option>
+        <option value="low">Low</option>
+        <option value="high">High</option>
+      </select>
+    </div>
 
-      </div>
-
-      <div class="form-group full">
-        <label for="message">Message</label>
-        <textarea
-          id="message"
-          rows="4"
-          placeholder="Briefly describe your issue or question..."
-          required
-        ></textarea>
-      </div>
-
-      <button type="submit" class="support-btn">
-        Send message →
-      </button>
-
-    </form>
   </div>
-</section>
+
+  <div class="form-group full">
+    <label for="message">Message</label>
+    <textarea
+      id="message"
+      name="message"
+      rows="4"
+      placeholder="Briefly describe your question or issue..."
+      required
+    ></textarea>
+  </div>
+
+  <button type="submit" class="support-btn">
+    Send message →
+  </button>
+
+<div class="form-trust">
+  <p class="form-disclaimer">
+    We will never ask for your password, payment details, or sensitive personal information.
+    This form is used only to respond to your inquiry.
+  </p>
+
+  <p class="form-privacy">
+    By submitting this form, you agree to our
+    <a href="privacy.html">Privacy Policy</a>.
+  </p>
+</div>
+
+
+</form>
 
 
 

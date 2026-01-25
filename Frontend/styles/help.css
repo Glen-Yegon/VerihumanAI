@@ -565,6 +565,40 @@ html {
 }
 
 
+.form-trust {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.form-disclaimer {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
+.form-privacy {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.form-privacy a {
+  color: #8ab6f9;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.form-privacy a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+
 /* FAQ Section */
 .faq-section {
   width: 100%;

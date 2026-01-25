@@ -39,6 +39,7 @@
       {
         "select-name": "off"
       }
-    ]
+    ],
+    "disown-opener": "off"
   }
 }
