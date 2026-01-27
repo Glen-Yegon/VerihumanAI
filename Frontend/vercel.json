@@ -1,38 +1,62 @@
 {
   "version": 2,
   "name": "verihuman",
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "pay.html", "use": "@vercel/static" },
-    { "src": "profile.html", "use": "@vercel/static" },
-    { "src": "sign.html", "use": "@vercel/static" },
-    { "src": "styles/**", "use": "@vercel/static" },
-    { "src": "Images/**", "use": "@vercel/static" },
-    { "src": "scripts/**", "use": "@vercel/static" },
-    { "src": "firebase-config/**", "use": "@vercel/static" },
-    { "src": "site.webmanifest", "use": "@vercel/static" },
-    { "src": "favicon.ico", "use": "@vercel/static" },
-    { "src": "apple-touch-icon.png", "use": "@vercel/static" }
-  ],
+
   "cleanUrls": true,
   "trailingSlash": false,
+
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/pay", "destination": "/pay.html" },
     { "source": "/profile", "destination": "/profile.html" },
-    { "source": "/sign", "destination": "/sign.html" }
+    { "source": "/sign", "destination": "/sign.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/help", "destination": "/help.html" }
   ],
+
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/pay.html", "destination": "/pay", "permanent": true },
     { "source": "/profile.html", "destination": "/profile", "permanent": true },
-    { "source": "/sign.html", "destination": "/sign", "permanent": true }
+    { "source": "/sign.html", "destination": "/sign", "permanent": true },
+    { "source": "/about.html", "destination": "/about", "permanent": true },
+    { "source": "/help.html", "destination": "/help", "permanent": true }
   ],
+
   "headers": [
     {
-      "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|mp4|webm|ogg|js|mjs|css)$",
+      "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(css|js|mjs)$",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|ico)$",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
       ]
     }
   ]
