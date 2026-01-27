@@ -31,7 +31,7 @@ html, body {
   top: 0;
   left: 0;
   width: 80px;
-  height: 100vh;
+  height: 100dvh;
   background-color: var(--color-dark);
   display: flex;
   flex-direction: column;
@@ -43,6 +43,7 @@ html, body {
   overflow: hidden;
   z-index: 99999;
 }
+
 
 .icon-btn {
   background: var(--color-mid);
@@ -285,7 +286,7 @@ html, body {
   }
   .sidebar.expanded {
     width: 320px;
-    padding: 20px;
+     padding: 16px 12px;
   }
     .mobile-header {
         display: flex; /* Show mobile header only on small screens */
@@ -293,6 +294,7 @@ html, body {
     main {
         padding: 0px;
     }
+
 }
 
   main {

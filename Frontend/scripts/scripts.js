@@ -99,7 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-
 document.addEventListener("DOMContentLoaded", () => {
   const sidebar = document.getElementById("sidebar");
   const sidebarToggle = document.getElementById("sidebarToggle");
@@ -107,8 +106,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const menuToggle = document.querySelector(".menu-toggle");
   const chatHistoryList = document.getElementById("chatHistoryList");
   const chatContainer = document.getElementById("chat-container");
+  const userAvatar = document.getElementById("user-avatar");
 
-  // These globals let us talk to scripts.js logic
+  // globals
   window.currentChatId = null;
   window.currentChatMessages = [];
   window.isNewConversation = false;
@@ -141,6 +141,14 @@ document.addEventListener("DOMContentLoaded", () => {
     sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
   });
 
+  // ✅ NEW: Close sidebar when avatar is clicked
+  userAvatar?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sidebar.classList.remove("expanded");
+    chatHistoryList.style.display = "none";
+    sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
+  });
+
   document.addEventListener("click", (e) => {
     if (
       sidebar.classList.contains("expanded") &&
@@ -153,6 +161,8 @@ document.addEventListener("DOMContentLoaded", () => {
       sidebarToggle.querySelector(".toggle-symbol").textContent = ">";
     }
   });
+
+
 
 // === Load chat history from Firestore ===
 async function loadChatHistory() {
@@ -537,3 +547,4 @@ closeSearchBtn.addEventListener("click", (e) => {
 searchInput.addEventListener("input", (e) => {
   filterChats(e.target.value);
 });
+
