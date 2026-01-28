@@ -751,8 +751,7 @@ function updateModeUI() {
   if (currentMode === "chat") {
     
   // default matrix colors
-  updateMatrixColors(['#cadcfc', '#8ab6f9', '#00246b']);
-  updateOverlayBackground('radial-gradient(circle at center, rgba(0,36,107,0.2) 0%, rgba(0,0,20,0.9) 90%)');
+
 // Ensure only chat mode UI is visible on page load
 chatInputContainer.style.display = "flex";
 
@@ -776,8 +775,7 @@ if (chatContainer.contains(humanizerUI)) {
   // ---------- DETECT MODE ----------
   if (currentMode === "detect") {
       // detection mode → bright yellow
- updateMatrixColors(['#ffeb3b', '#fff176']);
-  updateOverlayBackground('radial-gradient(circle at center, rgba(0,36,107,0.2) 0%, rgba(0,0,20,0.9) 90%)');
+
     const lastBubble = chatContainer.lastElementChild;
     if (!lastBubble || lastBubble.dataset.modeSwitch !== "detect") {
       const bubble = createBubble("🟡 Switched to AI Detection Mode", "ai");
@@ -807,8 +805,8 @@ if (chatContainer.contains(humanizerUI)) {
   // ---------- HUMANIZER MODE ----------
   if (currentMode === "humanize") {
       // humanizer mode → futuristic purple
-  updateMatrixColors(['#8a2be2', '#a64cff', '#5f00ff']);
-  updateOverlayBackground('radial-gradient(circle at center, rgba(0,36,107,0.2) 0%, rgba(0,0,20,0.9) 90%)');
+      
+
 
 
     const lastBubble = chatContainer.lastElementChild;
