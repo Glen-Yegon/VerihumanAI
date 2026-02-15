@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help & Support | VeriHuman AI</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" /> 
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="VeriHuman AI" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#00246b">
+
+  <!-- SEO Meta Description -->
+  <meta name="description" content="Get help and support for VeriHuman AI. Contact us, report issues, learn about the platform, and find answers to frequently asked questions.">
+
+  <!-- Open Graph Meta (Social Media Preview) -->
+  <meta property="og:title" content="Help & Support | VeriHuman AI">
+  <meta property="og:description" content="Get help and support for VeriHuman AI. Contact us, report issues, learn about the platform, and find answers to frequently asked questions.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://verihumanai.com/help.html">
+  <meta property="og:image" content="https://verihumanai.com/images/veri-logo.png">
+  <meta property="og:site_name" content="VeriHuman AI">
+
+  <!-- Twitter Card Meta -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Help & Support | VeriHuman AI">
+  <meta name="twitter:description" content="Get help and support for VeriHuman AI. Contact us, report issues, learn about the platform, and find answers to frequently asked questions.">
+  <meta name="twitter:image" content="https://verihumanai.com/images/veri-logo.png">
+  <meta name="twitter:site" content="@VeriHumanAI"> <!-- Replace with your Twitter handle -->
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles/help.css" />
+</head>
+
+<body>
+
+  <!-- Particles Background -->
+  <div id="particles-js"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <!-- Hamburger -->
+    <div class="nav-hamburger" id="hamburger">
+      <span></span><span></span><span></span>
+    </div>
+
+    <!-- Logo -->
+    <div class="nav-logo">
+      <img src="Images/veri.png" alt="VeriHuman Logo" />
+    </div>
+
+    <!-- Profile -->
+    <div class="nav-profile">
+      <a href="profile.html" aria-label="Profile">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="8" r="4" />
+  <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+</svg>
+
+      </a>
+    </div>
+  </nav>
+
+  <!-- Overlay -->
+  <div class="overlay" id="menuOverlay"></div>
+
+  <!-- Side Menu -->
+  <div class="side-menu" id="sideMenu">
+    <span class="close-btn" id="closeBtn">&times;</span>
+
+    <div class="menu-logo">
+      <img src="Images/veri.png" alt="Logo">
+    </div>
+
+    <hr class="divider">
+
+    <nav class="menu-links">
+      <a href="index.html">Home</a>
+      <a href="profile.html">Profile</a>
+      <a href="about.html">About</a>
+      <a href="sign.html">Sign Up / Login</a>
+    </nav>
+
+    <hr class="divider">
+
+    <div class="menu-brand">Verihuman AI</div>
+  </div>
+
+
+<!-- PRIVACY POLICY SECTION -->
+<section class="vh-privacy" id="privacy">
+  <div class="vh-privacy__container">
+
+    <header class="vh-privacy__header">
+      <p class="vh-privacy__kicker">VeriHuman Limited</p>
+      <h1 class="vh-privacy__title">Privacy Policy</h1>
+      <p class="vh-privacy__subtitle">
+        This Privacy Policy explains how <strong>VeriHuman Limited</strong> (“VeriHuman”, “we”, “us”, “our”) collects, uses,
+        shares, and protects personal data when you use our website, applications, and APIs (the “Service”).
+        It also describes your privacy rights and how to exercise them.
+      </p>
+
+      <div class="vh-privacy__meta" aria-label="Privacy policy metadata">
+        <div class="vh-privacy__metaItem">
+          <i class="fa-solid fa-calendar-days"></i>
+          <span><strong>Effective:</strong> <span>15 February 2026</span></span>
+        </div>
+        <div class="vh-privacy__metaItem">
+          <i class="fa-solid fa-rotate"></i>
+          <span><strong>Last updated:</strong> <span>15 February 2026</span></span>
+        </div>
+        <div class="vh-privacy__metaItem">
+          <i class="fa-solid fa-envelope"></i>
+          <span><strong>Privacy contact:</strong> <a href="mailto:contact@verihumanai.com">contact@verihumanai.com</a></span>
+        </div>
+      </div>
+    </header>
+
+    <div class="vh-privacy__layout">
+      <!-- Table of contents -->
+      <aside class="vh-privacy__toc" aria-label="Table of contents">
+        <div class="vh-privacy__tocCard">
+          <h2 class="vh-privacy__tocTitle">On this page</h2>
+          <nav class="vh-privacy__tocNav">
+            <a href="#p1">1. Who we are</a>
+            <a href="#p2">2. Scope</a>
+            <a href="#p3">3. Data we collect</a>
+            <a href="#p4">4. How we use data</a>
+            <a href="#p5">5. Legal bases</a>
+            <a href="#p6">6. AI features &amp; content processing</a>
+            <a href="#p7">7. Cookies &amp; analytics</a>
+            <a href="#p8">8. Sharing &amp; disclosure</a>
+            <a href="#p9">9. International transfers</a>
+            <a href="#p10">10. Data retention</a>
+            <a href="#p11">11. Security</a>
+            <a href="#p12">12. Your rights</a>
+            <a href="#p13">13. Children</a>
+            <a href="#p14">14. Marketing</a>
+            <a href="#p15">15. Automated decisions</a>
+            <a href="#p16">16. Third-party links</a>
+            <a href="#p17">17. Changes</a>
+            <a href="#p18">18. Contact</a>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <main class="vh-privacy__content" aria-label="Privacy policy content">
+        <article class="vh-privacy__card">
+
+          <section class="vh-privacy__section" id="p1">
+            <h2>1. Who we are</h2>
+            <p>
+              The Service is operated by <strong>VeriHuman Limited</strong>, incorporated in Kenya.
+              For the purposes of applicable data protection laws, VeriHuman Limited acts as a <strong>data controller</strong>
+              for personal data collected through the Service, unless we clearly state otherwise (for example, where we act as a processor for an enterprise customer).
+            </p>
+            <div class="vh-privacy__note">
+              <strong>Tip:</strong> If you use VeriHuman through a company/organization account, that organization may be the controller for some processing,
+              and we may act as a processor. Contact your organization for their internal privacy details.
+            </div>
+          </section>
+
+          <section class="vh-privacy__section" id="p2">
+            <h2>2. Scope</h2>
+            <p>
+              This Privacy Policy applies to our website, web app, customer support, billing, and our APIs (including developer dashboards and API keys).
+              It does not cover third-party services we don’t control (see Section 16).
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p3">
+            <h2>3. Data we collect</h2>
+
+            <h3>3.1 Data you provide</h3>
+            <ul>
+              <li><strong>Account data:</strong> name, email address, organization name (if provided), password (stored in encrypted/hashed form), and profile settings.</li>
+              <li><strong>Billing data:</strong> billing address, payment status, invoices/receipts, subscription plan, and transaction references. (Payment card details are typically processed by our payment provider, not stored by us.)</li>
+              <li><strong>Support data:</strong> messages you send to support, attachments you provide, and troubleshooting details.</li>
+              <li><strong>Content you submit:</strong> text, prompts, and documents you provide to the chat, detection, or humanizer features (“Inputs”).</li>
+            </ul>
+
+            <h3>3.2 Data we collect automatically</h3>
+            <ul>
+              <li><strong>Device and usage data:</strong> IP address, device type, browser type, operating system, app interactions, pages viewed, referral URLs, and timestamps.</li>
+              <li><strong>Log and security data:</strong> login events, API usage logs, rate-limit events, fraud/abuse signals, and error logs.</li>
+              <li><strong>Cookies and similar technologies:</strong> see Section 7.</li>
+            </ul>
+
+            <h3>3.3 Data from third parties</h3>
+            <ul>
+              <li><strong>Payment processors:</strong> confirmation of payment, subscription status, chargebacks, and fraud signals.</li>
+              <li><strong>Identity/sign-in providers:</strong> if you use social login, we receive limited profile data as permitted by that provider and your settings.</li>
+              <li><strong>Service providers:</strong> analytics, hosting, and security vendors may provide aggregated or technical signals.</li>
+            </ul>
+
+            <div class="vh-privacy__note">
+              <strong>Do not send sensitive personal data</strong> (e.g., medical information, national IDs, passwords, or confidential third-party data) unless you have a lawful reason and permission to do so.
+              If you choose to submit it, you do so at your own risk.
+            </div>
+          </section>
+
+          <section class="vh-privacy__section" id="p4">
+            <h2>4. How we use data</h2>
+            <p>We use personal data to:</p>
+            <ul>
+              <li>Provide, operate, and maintain the Service (including chat, detection, humanizing, and APIs).</li>
+              <li>Create and manage accounts, authenticate users, and issue API keys.</li>
+              <li>Process payments, manage subscriptions, and prevent fraud.</li>
+              <li>Monitor usage, enforce plan limits, prevent abuse, and keep the Service secure.</li>
+              <li>Improve quality, performance, and user experience (for example, by analyzing aggregate usage and error patterns).</li>
+              <li>Provide customer support and respond to inquiries.</li>
+              <li>Comply with legal obligations and enforce our Terms &amp; Conditions.</li>
+            </ul>
+          </section>
+
+          <section class="vh-privacy__section" id="p5">
+            <h2>5. Legal bases for processing</h2>
+            <p>
+              Depending on your location and applicable law, we rely on one or more of the following legal bases:
+            </p>
+            <ul>
+              <li><strong>Contract:</strong> to provide the Service you request, including account access, features, and customer support.</li>
+              <li><strong>Legitimate interests:</strong> to secure the Service, prevent fraud/abuse, improve functionality, and maintain platform integrity.</li>
+              <li><strong>Consent:</strong> where required (for example, certain cookies or marketing communications). You can withdraw consent at any time where it applies.</li>
+              <li><strong>Legal obligation:</strong> to meet legal, regulatory, tax, or accounting requirements, and respond to lawful requests.</li>
+            </ul>
+          </section>
+
+          <section class="vh-privacy__section" id="p6">
+            <h2>6. AI features &amp; content processing</h2>
+            <p>
+              VeriHuman processes the text you submit to generate outputs (chat responses, detection likelihood signals, or rewritten text).
+              We may also process technical and usage signals to enforce rate limits, protect the Service, and prevent misuse.
+            </p>
+
+            <h3>6.1 Inputs and outputs</h3>
+            <ul>
+              <li><strong>Inputs:</strong> the text and prompts you submit.</li>
+              <li><strong>Outputs:</strong> the results generated by the Service.</li>
+              <li><strong>Responsibility:</strong> you are responsible for ensuring you have the rights and permissions to submit Inputs and to use Outputs.</li>
+            </ul>
+
+            <h3>6.2 Model training and improvement</h3>
+            <p>
+              We may use a combination of (a) aggregate usage patterns, (b) de-identified or anonymized signals, and (c) limited samples for quality and safety review
+              to improve the Service. Where required by law, we will obtain your consent or provide opt-out choices within the product or via support.
+            </p>
+
+            <h3>6.3 Human review</h3>
+            <p>
+              We generally rely on automated systems. However, authorized personnel may review limited data to investigate abuse, respond to support requests,
+              resolve technical issues, or comply with legal obligations.
+            </p>
+
+            <div class="vh-privacy__note">
+              <strong>Important:</strong> Detection results are probabilistic signals, not conclusive proof of authorship. Please interpret them carefully.
+            </div>
+          </section>
+
+          <section class="vh-privacy__section" id="p7">
+            <h2>7. Cookies &amp; analytics</h2>
+            <p>
+              We use cookies and similar technologies to operate the Service, remember preferences, and understand how the Service is used.
+              Cookies may be “session” cookies (deleted when you close your browser) or “persistent” cookies (stored for longer).
+            </p>
+
+            <h3>7.1 Types of cookies</h3>
+            <ul>
+              <li><strong>Essential cookies:</strong> required for login, security, and core site functionality.</li>
+              <li><strong>Preference cookies:</strong> remember settings such as language or display preferences.</li>
+              <li><strong>Analytics cookies:</strong> help us understand usage and improve performance.</li>
+            </ul>
+
+            <h3>7.2 Your choices</h3>
+            <p>
+              You can control cookies through your browser settings and, where available, our cookie banner or preference tools.
+              Blocking certain cookies may affect site functionality.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p8">
+            <h2>8. Sharing &amp; disclosure</h2>
+            <p>We may share personal data with:</p>
+            <ul>
+              <li><strong>Service providers:</strong> hosting, storage, security, email delivery, analytics, and customer support tools (acting under contract and instructions).</li>
+              <li><strong>Payment processors:</strong> to process transactions and prevent fraud.</li>
+              <li><strong>API and infrastructure partners:</strong> where needed to deliver features (for example, external AI or verification APIs you invoke via the Service).</li>
+              <li><strong>Business transfers:</strong> if we are involved in a merger, acquisition, financing, or sale of assets, subject to appropriate safeguards.</li>
+              <li><strong>Legal and safety:</strong> where required by law, court order, or where necessary to protect users, our rights, and the integrity of the Service.</li>
+            </ul>
+            <p>
+              We do not sell personal data in the ordinary course of business. If that ever changes, we will clearly disclose it and, where required, offer opt-outs.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p9">
+            <h2>9. International transfers</h2>
+            <p>
+              VeriHuman operates globally. Your personal data may be processed in Kenya and in other countries where we or our service providers operate.
+              Where cross-border transfers occur, we use reasonable safeguards such as contractual protections, vendor due diligence, and security controls.
+            </p>
+            <div class="vh-privacy__note">
+              <strong>Note:</strong> If your jurisdiction requires additional safeguards for international transfers, we will implement appropriate measures consistent with applicable law.
+            </div>
+          </section>
+
+          <section class="vh-privacy__section" id="p10">
+            <h2>10. Data retention</h2>
+            <p>
+              We retain personal data only as long as reasonably necessary for the purposes described in this Privacy Policy, including to provide the Service,
+              comply with legal obligations, resolve disputes, enforce agreements, and maintain security.
+            </p>
+            <ul>
+              <li><strong>Account data:</strong> retained while your account is active, and for a limited period after closure where necessary.</li>
+              <li><strong>Billing records:</strong> retained as required by tax/accounting rules and dispute handling.</li>
+              <li><strong>Logs and security data:</strong> retained for security, fraud prevention, and reliability monitoring, then deleted or anonymized.</li>
+              <li><strong>Inputs:</strong> may be retained to provide the Service, for troubleshooting, abuse prevention, and as described in Section 6 (subject to your settings and lawful requirements).</li>
+            </ul>
+          </section>
+
+          <section class="vh-privacy__section" id="p11">
+            <h2>11. Security</h2>
+            <p>
+              We implement technical and organizational measures designed to protect personal data from unauthorized access, loss, misuse, alteration, and disclosure.
+              Measures may include access controls, encryption in transit, secure key management, monitoring, and staff confidentiality obligations.
+            </p>
+            <p>
+              No security system is perfect. You are responsible for using strong passwords, safeguarding your devices, and protecting your API keys.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p12">
+            <h2>12. Your rights</h2>
+            <p>
+              Depending on your jurisdiction, you may have rights regarding your personal data. These may include:
+            </p>
+            <ul>
+              <li><strong>Access:</strong> request a copy of personal data we hold about you.</li>
+              <li><strong>Rectification:</strong> correct inaccurate, incomplete, or outdated personal data.</li>
+              <li><strong>Erasure:</strong> request deletion of personal data in certain circumstances.</li>
+              <li><strong>Objection/restriction:</strong> object to or restrict certain processing in some cases.</li>
+              <li><strong>Data portability:</strong> request your data in a structured, commonly used, machine-readable format where applicable.</li>
+              <li><strong>Withdraw consent:</strong> where processing is based on consent.</li>
+            </ul>
+
+            <h3>12.1 How to exercise your rights</h3>
+            <p>
+              Email us at <a href="mailto:privacy@verihumanai.com">privacy@verihumanai.com</a> with your request. For security, we may verify your identity before responding.
+              We may refuse requests where permitted by law (for example, to protect the rights of others, comply with legal obligations, or maintain security).
+            </p>
+
+            <h3>12.2 Complaints</h3>
+            <p>
+              If you have a concern, please contact us first so we can try to resolve it. You may also have the right to lodge a complaint with your local data protection authority.
+              In Kenya, this is the Office of the Data Protection Commissioner (ODPC).
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p13">
+            <h2>13. Children</h2>
+            <p>
+              The Service is not intended for children under 13. If you are under 18, you should use the Service only with parental/guardian consent and supervision.
+              If you believe a child has provided personal data without appropriate consent, contact us and we will take reasonable steps to address it.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p14">
+            <h2>14. Marketing communications</h2>
+            <p>
+              We may send service-related messages (such as billing notices, security alerts, and essential updates).
+              Where permitted by law, we may also send marketing communications. You can opt out of marketing emails at any time by using the unsubscribe link
+              or by contacting us at <a href="mailto:privacy@verihumanai.com">privacy@verihumanai.com</a>.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p15">
+            <h2>15. Automated decisions</h2>
+            <p>
+              Some features may use automated processing (for example, abuse detection, rate limiting, or detection scoring).
+              These systems are designed to protect the Service and provide results, but they may not be perfect. If an automated decision significantly affects you
+              (for example, an account restriction), you may contact us to request review where applicable.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p16">
+            <h2>16. Third-party links</h2>
+            <p>
+              The Service may contain links to third-party websites or services. We do not control those third parties and are not responsible for their content or privacy practices.
+              Review their privacy policies before using them.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p17">
+            <h2>17. Changes to this Privacy Policy</h2>
+            <p>
+              We may update this Privacy Policy from time to time. We will revise the “Last updated” date at the top of this page.
+              If changes are material, we will take reasonable steps to notify you (for example, by posting a notice on our website or within your account).
+              Your continued use of the Service after the changes take effect means you accept the updated Privacy Policy.
+            </p>
+          </section>
+
+          <section class="vh-privacy__section" id="p18">
+            <h2>18. Contact</h2>
+            <div class="vh-privacy__contact">
+              <div class="vh-privacy__contactRow">
+                <i class="fa-solid fa-building"></i>
+                <span><strong>Company:</strong> VeriHuman Limited</span>
+              </div>
+              <div class="vh-privacy__contactRow">
+                <i class="fa-solid fa-envelope"></i>
+                <span><strong>Email:</strong> <a href="mailto:contact@verihumanai.com">contact@verihumanai.com</a></span>
+              </div>
+              <div class="vh-privacy__contactRow">
+                <i class="fa-solid fa-location-dot"></i>
+                <span><strong>Address:</strong> <!-- Replace with your official business address --> Nairobi, Kenya</span>
+              </div>
+            </div>
+            <p class="vh-privacy__small">
+              If you are an enterprise customer and need a data processing addendum (DPA), security questionnaire responses, or vendor documentation, contact us at
+              <a href="mailto:contact@verihumanai.com">contact@verihumanai.com</a>.
+            </p>
+          </section>
+
+        </article>
+
+        <div class="vh-privacy__footerNote">
+          <p>
+            <strong>Plain language note:</strong> We wrote this policy to be clear and readable. It still has legal meaning.
+            If anything is unclear, please reach out.
+          </p>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- Footer -->
+<footer class="footer">
+  <!-- Logo -->
+  <div class="footer-logo">
+    <img src="Images/veri.png" alt="VeriHuman Logo" />
+  </div>
+
+  <hr class="footer-divider">
+
+  <!-- Social Media Links -->
+  <div class="footer-social">
+    <a href="https://twitter.com/" target="_blank" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+    <a href="https://facebook.com/" target="_blank" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+    <a href="https://linkedin.com/" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+    <a href="https://instagram.com/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+  </div>
+
+  <!-- Contact Info -->
+  <div class="footer-contact">
+    <a href="mailto:contact@verihumanai.com">contact@verihumanai.com</a>
+    <span>|</span>
+    <a href="tel:+0000000000">+0 000 000 000</a>
+  </div>
+
+  <!-- Footer Links -->
+  <div class="footer-links">
+    <a href="terms-and-conditions.html">Terms & Conditions</a>
+    <a href="privacy-policy.html">Privacy Policy</a>
+  </div>
+
+  <!-- Copyright -->
+  <div class="footer-copy">
+    &copy; 2026 VeriHuman AI. All rights reserved.
+  </div>
+</footer>
+
+
+
+ <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+  <script>
+    particlesJS("particles-js", {
+      particles: {
+        number: { value: 200, density: { enable: true, value_area: 800 } },
+        color: { value: "#8ab6f9" },
+        shape: { type: "circle" },
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: {
+          enable: true,
+          distance: 150,
+          color: "#8ab6f9",
+          opacity: 0.3,
+          width: 1
+        },
+        move: {
+          enable: true,
+          speed: 2,
+          random: true,
+          out_mode: "out"
+        }
+      },
+      interactivity: {
+        events: {
+          onhover: { enable: true, mode: "repulse" },
+          onclick: { enable: true, mode: "push" }
+        },
+        modes: {
+          repulse: { distance: 100, duration: 0.4 },
+          push: { particles_nb: 4 }
+        }
+      },
+      retina_detect: true
+    });
+  </script>
+
+  <!-- Scripts -->
+  <script src="scripts/help.js"></script>
+</body>
+</html>
