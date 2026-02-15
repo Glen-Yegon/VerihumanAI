@@ -25,6 +25,17 @@ html, body {
   overflow-y: hidden; /* enable scrolling */
 }
 
+
+/* Particles Background */
+#particles-js {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: radial-gradient(circle, #00246b, #000);
+}
+
 /* Collapsed sidebar (default) */
 .sidebar {
   position: fixed;
@@ -1807,14 +1818,4 @@ html, body {
   background: transparent;
   color: #cadcfc;
   border: 1px solid #2a3558;
-}
-
-/* Particles Background */
-#particles-js {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    background: radial-gradient(circle, #00246b, #000);
 }

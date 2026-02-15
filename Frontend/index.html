@@ -24,6 +24,18 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="styles/styles.css">
     <link rel="stylesheet" href="styles/loading-screen.css">
+<script defer src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script defer src="scripts/particles-init.js"></script>
+
+<script>
+  if (
+    !sessionStorage.getItem("userUID") ||
+    !sessionStorage.getItem("userEmail")
+  ) {
+    window.location.replace("sign.html");
+  }
+</script>
+
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -104,6 +116,9 @@
 </style>
 
 <body>
+
+  <!-- Particles Background -->
+<div id="particles-js"></div>
 
     <div class="loader-container" id="loader-wrapper">
 <!-- From Uiverse.io by SelfMadeSystem --> 
@@ -378,8 +393,7 @@
 <canvas id="matrixCanvas"></canvas>
 <div class="overlay"></div>
 Matrix-style AI Background -->
-<!-- Particles Background -->
-<div id="particles-js"></div>
+
 
 </main>
 
@@ -452,52 +466,6 @@ Matrix-style AI Background -->
     <script src="scripts/loading-screen.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-<script>
-particlesJS("particles-js", {
-    particles: {
-        number: { 
-            value: 200,  // way more particles
-            density: { enable: true, value_area: 800 }
-        },
-        color: { value: "#8ab6f9" },
-        shape: { type: "circle" },
-        opacity: { value: 0.5, random: true },
-        size: { value: 3, random: true },
-        line_linked: {
-            enable: true,
-            distance: 150,
-            color: "#8ab6f9",
-            opacity: 0.3,
-            width: 1
-        },
-        move: {
-            enable: true,
-            speed: 2,
-            direction: "none",
-            random: true,
-            straight: false,
-            out_mode: "out",
-            bounce: false
-        }
-    },
-    interactivity: {
-        detect_on: "canvas",
-        events: {
-            onhover: { enable: true, mode: "repulse" },
-            onclick: { enable: true, mode: "push" },
-            resize: true
-        },
-        modes: {
-            repulse: { distance: 100, duration: 0.4 },
-            push: { particles_nb: 4 }
-        }
-    },
-    retina_detect: true
-});
-
-</script>
 
 
     <script>
@@ -1477,71 +1445,81 @@ msg.style.color = "#ffffff"; // ensures the text is white
 
 </script>
 
+
 <script>
 (function(){
-  const canvas = document.getElementById("matrixCanvas");
-  const ctx = canvas.getContext("2d");
+  function startMatrix(){
+    const canvas = document.getElementById("matrixCanvas");
+    if (!canvas) return; // prevents crash if canvas is not on this page
+    const ctx = canvas.getContext("2d");
 
-  let width = canvas.width = window.innerWidth;
-  let height = canvas.height = window.innerHeight;
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
 
-  let fontSize = width > 768 ? 24 : 16;
-  ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
-
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*()';
-  const chars = characters.split('');
-
-  let columns = Math.floor(width / fontSize);
-  let drops = Array(columns).fill(0);
-
-  // Default particle colors
-  let colors = ['#cadcfc', '#8ab6f9', '#00246b'];
-
-  // Overlay element
-  const overlay = document.querySelector('.overlay');
-
-  // Expose a function to change particle colors dynamically
-  window.updateMatrixColors = function(newColors) {
-    colors = newColors;
-  };
-
-  // Expose a function to change overlay background dynamically
-  window.updateOverlayBackground = function(bg) {
-    if (overlay) overlay.style.background = bg;
-  };
-
-  function draw() {
-    ctx.fillStyle = 'rgba(0, 0, 20, 0.05)'; // fading trail
-    ctx.fillRect(0, 0, width, height);
-
-    for (let i = 0; i < drops.length; i++) {
-      const text = chars[Math.floor(Math.random() * chars.length)];
-      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-      drops[i]++;
-      if (drops[i] * fontSize > height && Math.random() > 0.975) {
-        drops[i] = 0;
-      }
-    }
-
-    requestAnimationFrame(draw);
-  }
-
-  draw();
-
-  window.addEventListener('resize', () => {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-
-    fontSize = width > 768 ? 24 : 16;
+    let fontSize = width > 768 ? 24 : 16;
     ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
 
-    columns = Math.floor(width / fontSize);
-    drops = Array(columns).fill(0);
-  });
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*()';
+    const chars = characters.split('');
+
+    let columns = Math.floor(width / fontSize);
+    let drops = Array(columns).fill(0);
+
+    // Default particle colors
+    let colors = ['#cadcfc', '#8ab6f9', '#00246b'];
+
+    // Overlay element
+    const overlay = document.querySelector('.overlay');
+
+    // Expose a function to change particle colors dynamically
+    window.updateMatrixColors = function(newColors) {
+      if (Array.isArray(newColors) && newColors.length) colors = newColors;
+    };
+
+    // Expose a function to change overlay background dynamically
+    window.updateOverlayBackground = function(bg) {
+      if (overlay) overlay.style.background = bg;
+    };
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0, 0, 20, 0.05)'; // fading trail
+      ctx.fillRect(0, 0, width, height);
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars[(Math.random() * chars.length) | 0];
+        ctx.fillStyle = colors[(Math.random() * colors.length) | 0];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+        drops[i]++;
+        if (drops[i] * fontSize > height && Math.random() > 0.975) drops[i] = 0;
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+
+      fontSize = width > 768 ? 24 : 16;
+      ctx.font = `${fontSize}px 'Exo 2', sans-serif`;
+
+      columns = Math.floor(width / fontSize);
+      drops = Array(columns).fill(0);
+    });
+  }
+
+  // Run when DOM exists
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startMatrix);
+  } else {
+    startMatrix();
+  }
 })();
 </script>
+
 
 
 
