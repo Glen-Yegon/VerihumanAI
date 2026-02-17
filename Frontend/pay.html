@@ -4,7 +4,7 @@
     <!-- Basic Meta -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeriHuman - Futuristic Payment</title>
+    <title>VeriHuman - Payments</title>
     <meta name="description" content="Securely pay for Verihuman AI services. Humanize AI text, detect AI content, and manage your subscription safely.">
     <meta name="keywords" content="Verihuman payment, AI subscription, AI humanizer, secure payment, GPT AI services">
     <meta name="author" content="Verihuman AI">
@@ -26,6 +26,7 @@
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
     <!-- Open Graph -->
     <meta property="og:title" content="VeriHuman - Futuristic Payment">
@@ -63,7 +64,7 @@
 
     <!-- Logo -->
     <div class="nav-logo">
-      <img src="images/veri.png" alt="VeriHuman Logo" />
+    <a href="index.html"><img src="images/veri.png" alt="VeriHuman Logo" /></a>  
     </div>
 
     <!-- Profile -->
@@ -84,39 +85,212 @@
   <h1 class="hero-title">VERIHUMAN</h1>
 </section>
 
-<section class="pricing">
-  <!-- Free Plan -->
-  <div class="card free">
-    <h2>Essential</h2>
-    <p class="price">FREE</p>
-    <ul class="features">
-      <li>10 Free Credits</li>
-      <li>Access to AI Humanizer</li>
-      <li>Basic Humanization Score</li>
-      <li>Community Support</li>
-    </ul>
-    <div class="card-footer">
-      <span class="no-button">Included</span>
+<section class="vh-pricing" id="pricing">
+  <div class="vh-pricing__header">
+    <p class="vh-kicker">Simple, fair usage</p>
+    <h2 class="vh-title">Credits-based pricing</h2>
+    <p class="vh-subtitle">
+      <strong>1 credit = 1 prompt</strong> to any of Verihuman’s AI tools (Detection, Humanizer, or Chat).
+      New accounts start with <strong>20 free credits</strong>.
+    </p>
+
+    <div class="vh-badges" aria-label="Pricing highlights">
+      <span class="vh-badge">No subscriptions</span>
+      <span class="vh-badge">Pay only for what you use</span>
+      <span class="vh-badge">Instant top-up</span>
     </div>
   </div>
 
-  <!-- Premium Plan -->
-  <div class="card premium">
-    <h2>Neural Access</h2>
-    <p class="price">$19<span>/month</span></p>
-    <ul class="features">
-      <li>Unlimited Credits</li>
-      <li>Advanced Humanization AI</li>
-      <li>Detailed Humanization Score</li>
-      <li>Priority Email Support</li>
-      <li>Early Access to New Features</li>
-    </ul>
-    <div class="card-footer">
-      <button class="subscribe-btn">Subscribe</button>
-    </div>
+  <div class="vh-pricing__grid">
+    <!-- FREE CARD (left) -->
+    <article class="vh-card vh-card--free" aria-label="Free plan">
+      <div class="vh-card__top">
+        <h3 class="vh-card__title">Essential</h3>
+        <p class="vh-card__desc">Try Verihuman with free credits and core tools.</p>
+
+        <div class="vh-price">
+          <span class="vh-price__main">FREE</span>
+          <span class="vh-price__note">No card required</span>
+        </div>
+      </div>
+
+<ul class="vh-features">
+  <li>20 Free Credits on signup</li>
+  <li>Full access to Detection, Humanizer & AI Chat</li>
+  <li>1 Credit = 1 AI Prompt (any AI)</li>
+  <li>Standard AI Scoring Insights</li>
+  <li>Community Support</li>
+</ul>
+
+
+      <div class="vh-card__footer">
+        <span class="vh-pill">Included</span>
+        <p class="vh-footnote">Perfect for testing before you top up credits.</p>
+      </div>
+    </article>
+
+    <!-- CALCULATOR CARD (right) -->
+    <article class="vh-card vh-card--calc" aria-label="Credits calculator">
+      <div class="vh-card__top">
+        <div class="vh-card__titleRow">
+          <h3 class="vh-card__title">Top up credits</h3>
+          <span class="vh-chip" id="rateChip">KES 20 / credit</span>
+        </div>
+
+        <p class="vh-card__desc">
+          Choose your currency, then enter either the amount you want to pay or the credits you want.
+          The calculator updates instantly.
+        </p>
+      </div>
+
+      <div class="vh-form">
+        <div class="vh-field">
+          <label class="vh-label" for="currency">Currency</label>
+          <div class="vh-seg" role="tablist" aria-label="Currency selection">
+            <button type="button" class="vh-seg__btn is-active" data-currency="KES" aria-selected="true">
+              Ksh (KES)
+            </button>
+            <button type="button" class="vh-seg__btn" data-currency="USD" aria-selected="false">
+              USD ($)
+            </button>
+          </div>
+          <input type="hidden" id="currency" value="KES" />
+        </div>
+
+        <div class="vh-row">
+          <div class="vh-field">
+            <label class="vh-label" for="amountInput">Amount</label>
+            <div class="vh-inputWrap">
+              <span class="vh-prefix" id="amountPrefix">KES</span>
+              <input
+                id="amountInput"
+                class="vh-input"
+                inputmode="decimal"
+                placeholder="e.g. 1000"
+                autocomplete="off"
+              />
+            </div>
+            <p class="vh-hint" id="amountHint">Enter how much you want to pay.</p>
+          </div>
+
+          <div class="vh-divider" aria-hidden="true">
+            <span>⇄</span>
+          </div>
+
+          <div class="vh-field">
+            <label class="vh-label" for="creditsInput">Credits</label>
+            <div class="vh-inputWrap">
+              <span class="vh-prefix">CR</span>
+              <input
+                id="creditsInput"
+                class="vh-input"
+                inputmode="numeric"
+                placeholder="e.g. 50"
+                autocomplete="off"
+              />
+            </div>
+            <p class="vh-hint">Enter the number of credits you want.</p>
+          </div>
+        </div>
+
+        <div class="vh-summary" role="status" aria-live="polite">
+          <div class="vh-summary__left">
+            <p class="vh-summary__big" id="summaryPrimary">You’ll get <strong>0 credits</strong></p>
+            <p class="vh-summary__small" id="summarySecondary">for <strong>KES 0</strong></p>
+          </div>
+
+          <div class="vh-summary__right">
+            <p class="vh-micro">Tip</p>
+<p class="vh-microText" id="tipLine">
+  Many users start with <strong>30–100 credits</strong> depending on how much work they plan to do.
+</p>
+          </div>
+        </div>
+
+        <div class="vh-actions">
+          <button type="button" class="vh-payBtn" id="payBtn">
+            Pay & Get Credits
+            <span class="vh-payBtn__sub">Secure checkout (next step)</span>
+          </button>
+
+          <p class="vh-trust">
+            No monthly bills • Credits don’t lock you in • You control your spending
+          </p>
+        </div>
+      </div>
+
+      <div class="vh-info">
+        <details class="vh-details">
+          <summary>How credits work</summary>
+          <div class="vh-details__body">
+            <p>
+              Each time you send a prompt to any tool (Detection, Humanizer, or Chat), it uses <strong>1 credit</strong>.
+              Short prompts and long prompts both use a credit — keeping it simple.
+            </p>
+            <p>
+              You’ll always see your remaining credits in your <a href="profile.html" class="a">profile.</a> You can top up anytime.
+            </p>
+          </div>
+        </details>
+
+        <details class="vh-details">
+          <summary>Why prices differ by currency</summary>
+          <div class="vh-details__body">
+            <p>
+              We use regional pricing so local users can afford the service, while keeping the platform sustainable globally.
+            </p>
+          </div>
+        </details>
+      </div>
+    </article>
   </div>
 </section>
 
+
+<!-- Footer -->
+<footer class="footer">
+  <!-- Logo -->
+  <div class="footer-logo">
+   <a href="index.html"><img src="images/veri.png" alt="VeriHuman Logo" /></a>  
+  </div>
+
+  <hr class="footer-divider">
+
+  <!-- Social Media Links -->
+  <div class="footer-social">
+    <a href="https://www.instagram.com/verihuman/?utm_source=ig_web_button_share_sheet"
+       target="_blank"
+       rel="noopener"
+       aria-label="Instagram">
+       <i class="fab fa-instagram"></i>
+    </a>
+
+    <a href="https://www.tiktok.com/@verihuman111?is_from_webapp=1&sender_device=pc"
+       target="_blank"
+       rel="noopener"
+       aria-label="TikTok">
+       <i class="fab fa-tiktok"></i>
+    </a>
+  </div>
+
+  <!-- Contact Info -->
+  <div class="footer-contact">
+    <a href="mailto:contact@verihumanai.com">contact@verihumanai.com</a>
+    <span>|</span>
+    <a href="tel:+254715754941">+254 715 754 941</a>
+  </div>
+
+  <!-- Footer Links -->
+  <div class="footer-links">
+    <a href="terms-and-conditions.html">Terms & Conditions</a>
+    <a href="privacy-policy.html">Privacy Policy</a>
+  </div>
+
+  <!-- Copyright -->
+  <div class="footer-copy">
+    &copy; 2026 VeriHuman AI. All rights reserved.
+  </div>
+</footer>
 
 
   <!-- Hidden Menu -->
@@ -216,62 +390,6 @@
 })();
 </script>
 
-
-<script type="module">
-  import { app } from "./firebase-config/firebase.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  // 🎯 Target only the premium plan’s price
-  const premiumPriceElement = document.querySelector(".card.premium .price");
-
-  // 🌍 Nationality-based pricing
-  const pricing = {
-    Kenyan: { value: 1499, currency: "KES" },
-    Ugandan: { value: 55000, currency: "UGX" },
-    Tanzanian: { value: 26000, currency: "TZS" },
-    Nigerian: { value: 15000, currency: "NGN" },
-    "South African": { value: 360, currency: "ZAR" },
-    Other: { value: 19, currency: "$" },
-    default: { value: 19, currency: "$" }
-  };
-
-  // 🔥 When user is authenticated
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      try {
-        const userRef = doc(db, "signup", user.uid); // ✅ use signup collection
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const nationality = userData.nationality || "default";
-          console.log("User nationality:", nationality);
-
-          const userPricing = pricing[nationality] || pricing.default;
-
-          // ✨ Smoothly animate the price update
-          premiumPriceElement.style.transition = "opacity 0.5s ease";
-          premiumPriceElement.style.opacity = 0;
-
-          setTimeout(() => {
-            premiumPriceElement.innerHTML = `${userPricing.currency}${userPricing.value}<span>/month</span>`;
-            premiumPriceElement.style.opacity = 1;
-          }, 400);
-        } else {
-          console.warn("User document not found in 'signup' collection.");
-        }
-      } catch (error) {
-        console.error("Error fetching user nationality:", error);
-      }
-    } else {
-      console.warn("No user is signed in. Price will remain default.");
-    }
-  });
-</script>
 
 
 

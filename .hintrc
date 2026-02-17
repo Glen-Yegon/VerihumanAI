@@ -40,6 +40,13 @@
         "select-name": "off"
       }
     ],
-    "disown-opener": "off"
+    "disown-opener": "off",
+    "axe/aria": [
+      "default",
+      {
+        "aria-required-children": "off",
+        "aria-allowed-attr": "off"
+      }
+    ]
   }
 }

@@ -855,17 +855,36 @@ html, body {
   margin: 1rem 0;
 }
 
+.footer-social {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .footer-social a {
-  margin: 0 0.8rem;
+  display: inline-flex;          /* Fix baseline glitch */
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
   font-size: 1.2rem;
   color: #8ab6f9;
-  transition: transform 0.3s, color 0.3s;
+  text-decoration: none;
+  border-radius: 50%;
+  transition: transform 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.footer-social a i {
+  line-height: 1;                /* Prevent dash artifact */
 }
 
 .footer-social a:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
   color: #cadcfc;
+  box-shadow: 0 0 15px rgba(138, 182, 249, 0.5);
 }
+
 
 .footer-contact {
   font-size: 0.95rem;
@@ -999,8 +1018,8 @@ html, body {
       border: 1px solid var(--vh-border);
       color: rgba(202,220,252,.88);
       font-size: .95rem;
+     -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
     }
 
     .vh-terms__metaItem i{
@@ -1037,8 +1056,8 @@ html, body {
       border-radius: 18px;
       background: var(--vh-card);
       border: 1px solid var(--vh-border);
-      backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
       box-shadow: 0 10px 35px rgba(0,0,0,.25);
     }
 
@@ -1093,8 +1112,8 @@ html, body {
       background: rgba(0,36,107,.18);
       border: 1px solid var(--vh-border);
       box-shadow: 0 16px 50px rgba(0,0,0,.28);
+            -webkit-backdrop-filter: blur(12px);
       backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
     }
 
     .vh-terms__section{
@@ -1323,8 +1342,8 @@ html, body {
   border: 1px solid var(--vh-border);
   color: rgba(202,220,252,.88);
   font-size: .95rem;
+    -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .vh-privacy__metaItem i{
@@ -1357,8 +1376,8 @@ html, body {
   border-radius: 18px;
   background: rgba(0,36,107,.24);
   border: 1px solid var(--vh-border);
+    -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 10px 35px rgba(0,0,0,.25);
 }
 
@@ -1413,8 +1432,8 @@ html, body {
   background: var(--vh-card);
   border: 1px solid var(--vh-border);
   box-shadow: 0 16px 50px rgba(0,0,0,.28);
+    -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .vh-privacy__section{
