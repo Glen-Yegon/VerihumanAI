@@ -11,6 +11,7 @@ import {
 } from "../firebase-config/firebase-credits.js";
 
 
+// Check if user is logged in
 function isUserLoggedIn() {
   return (
     sessionStorage.getItem("userUID") &&
@@ -18,6 +19,7 @@ function isUserLoggedIn() {
   );
 }
 
+// Show / Hide modal
 function showAuthModal() {
   document.getElementById("auth-modal").classList.remove("hidden");
 }
@@ -26,21 +28,54 @@ function hideAuthModal() {
   document.getElementById("auth-modal").classList.add("hidden");
 }
 
-document.getElementById("close-auth-modal").onclick = hideAuthModal;
+// Wait for DOM to load before attaching events
+document.addEventListener("DOMContentLoaded", () => {
 
-document.getElementById("go-signin-btn").onclick = () => {
-  window.location.href = "sign.html";
-};
+  const closeBtn = document.getElementById("close-auth-modal");
+  const goSigninBtn = document.getElementById("go-signin-btn");
+  const chatForm = document.getElementById("chatForm");
 
-document.getElementById("chatForm").addEventListener("submit", (e) => {
+  // 🔥 Immediately check login when page loads
   if (!isUserLoggedIn()) {
-    e.preventDefault();
     showAuthModal();
-    return;
   }
 
-  // user is logged in → continue sending message
+  // Close modal
+  if (closeBtn) {
+    closeBtn.addEventListener("click", hideAuthModal);
+  }
+
+  // Go to sign page
+  if (goSigninBtn) {
+    goSigninBtn.addEventListener("click", () => {
+      window.location.href = "sign.html";
+    });
+  }
+
+  // Protect form submission
+  if (chatForm) {
+    chatForm.addEventListener("submit", (e) => {
+      if (!isUserLoggedIn()) {
+        e.preventDefault();
+        showAuthModal();
+      }
+    });
+  }
+
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("auth-modal");
+  const backdrop = modal?.querySelector(".auth-modal__backdrop");
+
+  if (backdrop) {
+    backdrop.addEventListener("click", () => {
+      // same behavior as your cancel button
+      document.getElementById("close-auth-modal")?.click();
+    });
+  }
+});
+
 
 document.getElementById("chatForm").addEventListener("submit", (e) => {
   if (!isUserLoggedIn()) {

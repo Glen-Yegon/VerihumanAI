@@ -29,16 +29,6 @@
 <script defer src="scripts/particles-init.js"></script>
 <script type="module" src="scripts/ai.js"></script>
 
-<script>
-  if (
-    !sessionStorage.getItem("userUID") ||
-    !sessionStorage.getItem("userEmail")
-  ) {
-    window.location.replace("sign.html");
-  }
-</script>
-
-
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
@@ -122,7 +112,7 @@
   <!-- Particles Background -->
 <div id="particles-js"></div>
 
-    <div class="loader-container" id="loader-wrapper">
+    <div class="loader-container" id="loader-wrapper" style="z-index: 99999 !important;">
 <!-- From Uiverse.io by SelfMadeSystem --> 
 <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="loader">
   <path pathLength="360" d="M 56.3752 2 H 7.6248 C 7.2797 2 6.9999 2.268 6.9999 2.5985 V 61.4015 C 6.9999 61.7321 7.2797 62 7.6248 62 H 56.3752 C 56.7203 62 57.0001 61.7321 57.0001 61.4015 V 2.5985 C 57.0001 2.268 56.7203 2 56.3752 2 Z"></path>
@@ -450,15 +440,34 @@ Matrix-style AI Background -->
 
 
 <!-- Sign-in Required Modal -->
-<div id="auth-modal" class="auth-modal hidden">
-  <div class="auth-modal-content">
-    <h3>Sign in required</h3>
-    <p>You need to sign in before using VeriHuman AI features.</p>
+<div id="auth-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle" aria-describedby="authDesc">
+  <div class="auth-modal__backdrop" data-close="true"></div>
 
-    <div class="auth-modal-actions">
-      <button id="go-signin-btn">Sign In</button>
-      <button id="close-auth-modal" class="secondary">Cancel</button>
+  <div class="auth-modal__panel" role="document">
+    <div class="auth-modal__icon" aria-hidden="true">
+      <!-- simple spark icon -->
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2l1.2 6.2L19.5 12l-6.3 3.8L12 22l-1.2-6.2L4.5 12l6.3-3.8L12 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
     </div>
+
+    <h3 id="authTitle" class="auth-modal__title">Sign in to continue</h3>
+    <p id="authDesc" class="auth-modal__desc">
+      Please sign in to access VeriHuman AI features and keep your workspace secure.
+    </p>
+
+    <div class="auth-modal__actions">
+      <button id="go-signin-btn" class="auth-btn auth-btn--primary" type="button">
+        Sign in
+      </button>
+      <button id="close-auth-modal" class="auth-btn auth-btn--ghost" type="button">
+        Not now
+      </button>
+    </div>
+
+    <p class="auth-modal__fineprint">
+      We use secure authentication. Your data remains private and encrypted in transit.
+    </p>
   </div>
 </div>
 
