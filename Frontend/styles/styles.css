@@ -357,12 +357,17 @@ html, body {
 
 .chat-input-container {
   position: fixed;
-  bottom: 20px; /* safe margin from bottom */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
+
+  /* Responsive side margins */
+  left: clamp(16px, 4vw, 60px);
+  right: clamp(16px, 4vw, 60px);
+
+  bottom: calc(20px + env(safe-area-inset-bottom));
+
   max-width: 800px;
-  z-index: 99999;
+  margin-inline: auto; /* centers when max-width kicks in */
+
+  z-index: 9999;
 
   display: flex;
   align-items: center;
@@ -371,22 +376,26 @@ html, body {
   backdrop-filter: blur(12px);
   border: 1px solid #00246b;
   border-radius: 50px;
-  padding: 30px 15px;
+  padding: 18px 20px;
   gap: 10px;
-}
-.chat-input-container {
+
   box-sizing: border-box;
   overflow: hidden;
 }
 
-
-.chat-input-container input {
+.chat-input-container textarea {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
   color: #fff;
   font-size: 16px;
+  resize: none;             /* disable manual resize */
+  overflow-y: hidden;       /* hide scrollbar */
+  min-height: 24px;
+  max-height: 180px;        /* prevent insane growth */
+  line-height: 1.4;
+  font-family: Inter, sans-serif;
 }
 
 .chat-input-container button {
@@ -419,6 +428,7 @@ html, body {
 .send-btn svg {
   stroke: #00246b; /* Main accent */
 }
+
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
@@ -461,6 +471,72 @@ html, body {
     width: 20px;
     height: 20px;
   }
+}
+
+.attachments-preview{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:10px 0 0;
+  max-width:100%;
+}
+
+.attachment-chip{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#cadcfc;
+  color:#00246b;
+  border-radius:12px;
+  padding:8px 10px;
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+}
+
+.attachment-chip img{
+  width:34px;
+  height:34px;
+  object-fit:cover;
+  border-radius:8px;
+  border:1px solid rgba(0,36,107,0.15);
+}
+
+.attachment-remove{
+  border:none;
+  background:transparent;
+  color:#00246b;
+  cursor:pointer;
+  font-size:16px;
+  line-height:1;
+  padding:0 2px;
+}
+
+.bubble-attachments{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:10px;
+}
+
+.bubble-attachment-img{
+  width:140px;
+  max-width: 42vw;
+  height:auto;
+  border-radius:14px;
+  border:1px solid rgba(202,220,252,0.35);
+}
+
+.bubble-attachment-file{
+  background:#cadcfc;
+  color:#00246b;
+  padding:10px 12px;
+  border-radius:14px;
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 

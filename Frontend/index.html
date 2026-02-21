@@ -366,9 +366,25 @@
       <path d="M12 5v14m-7-7h14" stroke="#cadcfc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </button>
+  <!-- Hidden file input -->
+<input
+  type="file"
+  id="fileInput"
+  hidden
+  multiple
+  accept="image/*,.pdf,.doc,.docx,.txt"
+/>
+
+<!-- Attachments preview (optional but recommended) -->
+<div id="attachmentsPreview" class="attachments-preview"></div>
   
 
-  <input type="text" placeholder="Type your message..." class="chat-input" id="chatInput" autocomplete="off">
+<textarea
+  placeholder="Type your message..."
+  class="chat-input"
+  id="chatInput"
+  rows="1"
+></textarea>
 
   <button class="send-btn" id="sendBtn" title="Send" type="submit">
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#cadcfc" viewBox="0 0 24 24">
@@ -389,13 +405,6 @@ Matrix-style AI Background -->
 
 </main>
 
-
-    <!-- Transition overlay -->
-<div id="page-transition">
-  <div class="logo-wrapper">
-    <img src="Images/veri.png" alt="Verihuman Logo">
-  </div>
-</div>
 
 
 <!-- Chat History Modal -->

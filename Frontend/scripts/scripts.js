@@ -315,7 +315,7 @@ chatInput.addEventListener("keydown", (e) => {
 });
 
 
-
+/* 
   document.addEventListener("DOMContentLoaded", () => {
     const links = document.querySelectorAll("a");
     const transition = document.getElementById("page-transition");
@@ -355,7 +355,7 @@ chatInput.addEventListener("keydown", (e) => {
       }
     });
   });
-
+*/
 
 let chatIdPendingDelete = null;
 
@@ -548,3 +548,7 @@ searchInput.addEventListener("input", (e) => {
   filterChats(e.target.value);
 });
 
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";                 // reset
+  chatInput.style.height = chatInput.scrollHeight + "px"; // expand
+});

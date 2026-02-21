@@ -426,43 +426,71 @@ function getCurrentMode() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 
-  function createBubble(message = "", sender = "ai", options = {}) {
-    const wrapper = document.createElement("div");
-    wrapper.classList.add("chat-wrapper", sender);
+function createBubble(message = "", sender = "ai", options = {}, attachments = []) {
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("chat-wrapper", sender);
 
-    const avatarEl = document.createElement("div");
-    avatarEl.className = "avatar";
-    if (sender === "ai") {
-      avatarEl.style.backgroundImage = "url('Images/veri-logo.png')";
-    } else {
-      const userAvatar = document.getElementById("user-avatar");
-      avatarEl.style.backgroundImage =
-        (userAvatar && userAvatar.style.backgroundImage) ||
-        "url('Images/veri-logo.png')";
-    }
+  const avatarEl = document.createElement("div");
+  avatarEl.className = "avatar";
 
-    const bubble = document.createElement("div");
-    bubble.classList.add("chat-bubble", sender);
-    if (options.scanning) {
-      bubble.classList.add("scanning");
-      bubble.innerHTML =
-        '<span class="scanning-dots"><span></span><span></span><span></span></span>';
-    } else {
-      bubble.textContent = message;
-    }
-
-    wrapper.appendChild(avatarEl);
-    wrapper.appendChild(bubble);
-    chatContainer.appendChild(wrapper);
-// After appending bubble to wrapper and scrolling
-scrollToBottom();
-
-// Add copy button to this bubble
-addCopyButton(bubble);
-
-return bubble;
-
+  if (sender === "ai") {
+    avatarEl.style.backgroundImage = "url('Images/veri-logo.png')";
+  } else {
+    const userAvatar = document.getElementById("user-avatar");
+    avatarEl.style.backgroundImage =
+      (userAvatar && userAvatar.style.backgroundImage) ||
+      "url('Images/veri-logo.png')";
   }
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("chat-bubble", sender);
+
+  // Loading state
+  if (options.scanning) {
+    bubble.classList.add("scanning");
+    bubble.innerHTML =
+      '<span class="scanning-dots"><span></span><span></span><span></span></span>';
+  } else {
+    // ✅ Message text
+    bubble.textContent = message || "";
+
+    // ✅ Attachments inside bubble (images + file chips)
+    if (attachments && attachments.length) {
+      const wrap = document.createElement("div");
+      wrap.className = "bubble-attachments";
+
+      attachments.forEach((file) => {
+        // Images
+        if (file.type && file.type.startsWith("image/")) {
+          const img = document.createElement("img");
+          img.className = "bubble-attachment-img";
+          img.src = URL.createObjectURL(file);
+          img.alt = file.name || "image";
+          wrap.appendChild(img);
+        } else {
+          // Non-image file chip
+          const chip = document.createElement("div");
+          chip.className = "bubble-attachment-file";
+          chip.textContent = file.name || "file";
+          wrap.appendChild(chip);
+        }
+      });
+
+      bubble.appendChild(wrap);
+    }
+  }
+
+  wrapper.appendChild(avatarEl);
+  wrapper.appendChild(bubble);
+  chatContainer.appendChild(wrapper);
+
+  scrollToBottom();
+
+  // ✅ Add copy button for text (won't break images)
+  addCopyButton(bubble);
+
+  return bubble;
+}
 
  function addCopyButton(bubbleEl) {
   // Skip if bubble already has a copy button
@@ -589,31 +617,86 @@ function addMessage(sender, text) {
 }
 
 
-  async function sendPromptToAPI(promptText) {
-    const body = { prompt: promptText };
-    try {
-      const res = await fetch("https://verihumanai.onrender.com/api/chat", {
+async function compressImage(file, { maxWidth = 1400, quality = 0.8 } = {}) {
+  if (!file.type.startsWith("image/")) return file;
+
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = url;
+  });
+
+  const scale = Math.min(1, maxWidth / img.width);
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+
+  URL.revokeObjectURL(url);
+
+  // Convert to JPEG (much smaller than PNG)
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", quality)
+  );
+
+  const newName = file.name.replace(/\.(png|webp|bmp)$/i, ".jpg");
+  return new File([blob], newName, { type: "image/jpeg" });
+}
+
+
+async function sendPromptToAPI(promptText, files = []) {
+  try {
+    let res;
+
+    // If files exist → multipart/form-data
+if (files && files.length) {
+  const form = new FormData();
+  form.append("prompt", promptText || "");
+
+  // ✅ compress only images
+  for (const f of files) {
+    const toSend = f.type.startsWith("image/") ? await compressImage(f) : f;
+    form.append("files", toSend);
+  }
+
+  res = await fetch("https://verihumanai.onrender.com/api/chat", {
+    method: "POST",
+    body: form,
+  });
+    } else {
+      // No files → keep JSON (your old behavior)
+      const body = { prompt: promptText };
+      res = await fetch("https://verihumanai.onrender.com/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        let text = `Server error ${res.status}`;
-        try {
-          const j = await res.json();
-          text = j.detail || JSON.stringify(j);
-        } catch (e) {
-          console.error("Response JSON parse failed:", e);
-        }
-        throw new Error(text);
-      }
-      return await res.json();
-    } catch (err) {
-      console.error("❌ Fetch error:", err);
-      throw err;
     }
-  }
 
+    if (!res.ok) {
+      let text = `Server error ${res.status}`;
+      try {
+        const j = await res.json();
+        text = j.detail || JSON.stringify(j);
+      } catch (e) {
+        console.error("Response JSON parse failed:", e);
+      }
+      throw new Error(text);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error("❌ Fetch error:", err);
+    throw err;
+  }
+}
 
 // ------------------------
 // CHAT MODE
@@ -621,21 +704,33 @@ function addMessage(sender, text) {
 async function handleSend() {
   const userUID = sessionStorage.getItem("userUID");
   if (!userUID) return;
-  
+
   if (!(await creditGuard())) return;
 
   const text = chatInput.value.trim();
-  if (!text) return;
+  const filesToSend = (selectedFiles || []).slice(); // ✅ snapshot
+  const hasFiles = filesToSend.length > 0;
 
-  createBubble(text, "user");
-  addMessage("user", text);
+  // ✅ allow send if either text OR files exist
+  if (!text && !hasFiles) return;
+
+  // ✅ Show user bubble with BOTH text + attachments
+  const userDisplay = text || (hasFiles ? "" : "");
+  createBubble(userDisplay, "user", {}, filesToSend);
+  addMessage("user", text || (hasFiles ? "[Sent attachment(s)]" : ""));
+
+  // ✅ Clear UI immediately (feels like message sent)
+  chatInput.value = "";
+  chatInput.style.height = "auto";
+  selectedFiles = [];
+  renderAttachmentsPreview();
 
   const aiBubble = createBubble("", "ai", { scanning: true });
-  chatInput.value = "";
   chatInput.disabled = true;
 
   try {
-    const data = await sendPromptToAPI(text);
+    // ✅ send snapshot
+    const data = await sendPromptToAPI(text, filesToSend);
     const reply = typeof data.reply === "string" ? data.reply : "[No reply]";
 
     aiBubble.classList.remove("scanning");
@@ -647,7 +742,7 @@ async function handleSend() {
 
     await saveChatToHistory(
       userUID,
-      text,
+      text || (hasFiles ? "[Sent attachment(s)]" : ""),
       reply,
       isNewConversation,
       {
@@ -670,14 +765,17 @@ async function handleSend() {
   } catch (err) {
     console.error("❌ Chat send error:", err);
     aiBubble.textContent = "Sorry — something went wrong.";
+
+    // Optional UX: if send fails, you could restore attachments here if you want
+    // selectedFiles = filesToSend;
+    // renderAttachmentsPreview();
   } finally {
     chatInput.disabled = false;
     chatInput.focus();
   }
 }
-// Make it globally accessible
-window.handleSend = handleSend;
 
+window.handleSend = handleSend;
 
 // ------------------------
 // DETECTION MODE
@@ -1073,3 +1171,57 @@ msg.style.color = "#ffffff"; // ensures the text is white
     startMatrix();
   }
 })();
+
+
+const fileBtn = document.querySelector(".file-upload-btn");
+const fileInput = document.getElementById("fileInput");
+const attachmentsPreview = document.getElementById("attachmentsPreview");
+
+let selectedFiles = []; // holds File objects
+
+fileBtn.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  // Append new picks (you can also replace instead of append if you prefer)
+  selectedFiles = selectedFiles.concat(files);
+
+  renderAttachmentsPreview();
+  // reset input so user can pick same file again if needed
+  fileInput.value = "";
+});
+
+function renderAttachmentsPreview() {
+  attachmentsPreview.innerHTML = "";
+
+  selectedFiles.forEach((file, idx) => {
+    const chip = document.createElement("div");
+    chip.className = "attachment-chip";
+
+    // Thumbnail for images
+    let thumbHTML = "";
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      thumbHTML = `<img src="${url}" alt="attachment" />`;
+    } else {
+      thumbHTML = `<div style="width:34px;height:34px;border-radius:8px;background:#8ab6f9;display:flex;align-items:center;justify-content:center;font-family:Exo 2,sans-serif;color:#00246b;">DOC</div>`;
+    }
+
+    chip.innerHTML = `
+      ${thumbHTML}
+      <div style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${file.name}
+      </div>
+      <button type="button" class="attachment-remove" aria-label="Remove file">×</button>
+    `;
+
+    chip.querySelector(".attachment-remove").addEventListener("click", () => {
+      selectedFiles.splice(idx, 1);
+      renderAttachmentsPreview();
+    });
+
+    attachmentsPreview.appendChild(chip);
+  });
+}

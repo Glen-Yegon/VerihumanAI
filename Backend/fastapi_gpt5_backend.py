@@ -2,6 +2,8 @@ import os
 import asyncio
 import httpx  # for async HTTP requests to GPTZero
 import logging
+import base64
+from fastapi import UploadFile, File, Form
 from pathlib import Path
 from typing import Optional, Any, Dict, List
 from openai import OpenAI
@@ -10,6 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from fastapi import Body
 
 import logging
 # Make sure you have a logger configured at the top of your file
@@ -180,6 +183,41 @@ def safe_extract_reply(resp) -> str:
         return f"[extract error: {e}]"
 
 
+def file_to_text(filename: str, content: bytes) -> str:
+    """
+    Very basic document-to-text extractor.
+    Supports: .txt, .pdf, .docx (docx needs python-docx), .pdf needs pypdf.
+    """
+    name = (filename or "").lower()
+
+    if name.endswith(".txt"):
+        try:
+            return content.decode("utf-8", errors="ignore")
+        except Exception:
+            return ""
+
+    if name.endswith(".docx"):
+        try:
+            import docx
+            from io import BytesIO
+            d = docx.Document(BytesIO(content))
+            return "\n".join(p.text for p in d.paragraphs if p.text)
+        except Exception:
+            return ""
+
+    if name.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            from io import BytesIO
+            reader = PdfReader(BytesIO(content))
+            pages = []
+            for p in reader.pages:
+                pages.append(p.extract_text() or "")
+            return "\n".join(pages).strip()
+        except Exception:
+            return ""
+
+    return ""
 
 # -------------------- Humanizer Helpers --------------------
 
@@ -428,31 +466,90 @@ async def health():
 
 
 
-
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
-    prompt_text = req.prompt.strip()
-    if not prompt_text:
-        raise HTTPException(status_code=400, detail="Empty prompt")
-
+async def chat(
+    request: Request,
+    prompt: Optional[str] = Form(None),
+    files: Optional[List[UploadFile]] = File(None),
+    json_body: Optional[ChatRequest] = Body(None),
+):
     try:
-        # ✅ Use Chat Completions API for GPT-3.5
+        content_type = request.headers.get("content-type", "")
+        upload_files: List[UploadFile] = []
+
+        # Decide input source
+        if "application/json" in content_type:
+            if not json_body:
+                raise HTTPException(status_code=400, detail="Missing JSON body")
+            user_text = (json_body.prompt or "").strip()
+            max_tokens = json_body.max_output_tokens or 512
+            upload_files = []
+        else:
+            user_text = (prompt or "").strip()
+            max_tokens = 512
+            upload_files = files or []
+
+        # allow files-only OR text-only
+        if not user_text and not upload_files:
+            raise HTTPException(status_code=400, detail="Empty prompt")
+
+        # Build multimodal message content
+        user_content = []
+        if user_text:
+            user_content.append({"type": "text", "text": user_text})
+
+        # If files-only, add a default instruction so GPT replies nicely
+        if upload_files and not user_text:
+            user_content.append({"type": "text", "text": "Help me with this attachment."})
+
+        # Process files
+        doc_text_blobs = []
+        for f in upload_files:
+            raw = await f.read()
+
+            # basic 6MB guard (adjust if you want)
+            if len(raw) > 6 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail=f"File too large: {f.filename}")
+
+            fname = f.filename or "file"
+            ctype = (f.content_type or "").lower()
+
+            if ctype.startswith("image/"):
+                b64 = base64.b64encode(raw).decode("utf-8")
+                data_url = f"data:{ctype};base64,{b64}"
+                user_content.append({"type": "image_url", "image_url": {"url": data_url}})
+            else:
+                extracted = file_to_text(fname, raw)
+                if extracted:
+                    doc_text_blobs.append(f"\n\n[File: {fname}]\n{extracted[:12000]}")
+
+        if doc_text_blobs:
+            user_content.append({
+                "type": "text",
+                "text": "Here is extracted text from attached documents:" + "".join(doc_text_blobs)
+            })
+
+        if not user_content:
+            raise HTTPException(status_code=400, detail="Nothing to send to model")
+
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4.1")
+
         response = await asyncio.to_thread(
             client.chat.completions.create,
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt_text}],
-            max_tokens=req.max_output_tokens or 512,
+            model=model_name,
+            messages=[{"role": "user", "content": user_content}],
+            max_tokens=max_tokens,
         )
 
-        # ✅ Corrected way to access model reply
-        reply = response.choices[0].message.content.strip()
-
+        reply = (response.choices[0].message.content or "").strip() or "[No reply]"
         usage = None
-        if hasattr(response, "usage"):
+        if getattr(response, "usage", None):
             usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") else dict(response.usage)
 
         return {"reply": reply, "usage": usage}
 
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback, time
         err_text = f"{time.ctime()} - OpenAI API request failed: {str(e)}\n{traceback.format_exc()}\n"
