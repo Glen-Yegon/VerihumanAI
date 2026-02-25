@@ -366,9 +366,7 @@ html, body {
 
   max-width: 800px;
   margin-inline: auto; /* centers when max-width kicks in */
-
   z-index: 9999;
-
   display: flex;
   align-items: center;
 
@@ -1975,6 +1973,92 @@ html, body {
     padding: 26px 24px;
   }
   .auth-modal__actions{
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+/* ---------- AI Rich Rendering ---------- */
+.ai-rich .ai-text{
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: #cadcfc;
+  white-space: normal;
+}
+
+.ai-rich .ai-text + .ai-text{
+  margin-top: 10px;
+}
+
+/* ---------- Code blocks (minimal + professional) ---------- */
+.ai-codeblock{
+  margin-top: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+
+  background: rgba(0, 36, 107, 0.55);           /* #00246b */
+  border: 1px solid rgba(138, 182, 249, 0.25);  /* #8ab6f9 */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.ai-code-lang{
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  letter-spacing: 0.2px;
+  color: rgba(202, 220, 252, 0.85);             /* #cadcfc */
+  background: rgba(0, 36, 107, 0.72);
+  border-bottom: 1px solid rgba(138, 182, 249, 0.18);
+}
+
+.ai-codeblock pre{
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+
+.ai-codeblock code{
+  color: #cadcfc;
+  font-size: 0.88rem;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* Optional: nicer scrollbar for code */
+.ai-codeblock pre::-webkit-scrollbar{
+  height: 10px;
+}
+.ai-codeblock pre::-webkit-scrollbar-track{
+  background: rgba(0, 36, 107, 0.35);
+}
+.ai-codeblock pre::-webkit-scrollbar-thumb{
+  background: rgba(138, 182, 249, 0.35);
+  border-radius: 10px;
+}
+
+/* ---------- Media previews ---------- */
+.ai-media-wrap{
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.ai-media{
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(138, 182, 249, 0.22);
+  background: rgba(0, 36, 107, 0.35);
+}
+
+.ai-img{
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* If you want 2-column images on desktop */
+@media (min-width: 900px){
+  .ai-media-wrap{
     grid-template-columns: 1fr 1fr;
   }
 }

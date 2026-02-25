@@ -12,6 +12,8 @@ __all__ = ["OutputItemRetrieveResponse", "Result", "Sample", "SampleInput", "Sam
 
 
 class Result(BaseModel):
+    """A single grader result for an evaluation run output item."""
+
     name: str
     """The name of the grader."""
 
@@ -27,15 +29,22 @@ class Result(BaseModel):
     type: Optional[str] = None
     """The grader type (for example, "string-check-grader")."""
 
-    __pydantic_extra__: Dict[str, object] = FieldInfo(init=False)  # pyright: ignore[reportIncompatibleVariableOverride]
     if TYPE_CHECKING:
+        # Some versions of Pydantic <2.8.0 have a bug and don’t allow assigning a
+        # value to this field, so for compatibility we avoid doing it at runtime.
+        __pydantic_extra__: Dict[str, object] = FieldInfo(init=False)  # pyright: ignore[reportIncompatibleVariableOverride]
+
         # Stub to indicate that arbitrary properties are accepted.
         # To access properties that are not valid identifiers you can use `getattr`, e.g.
         # `getattr(obj, '$type')`
         def __getattr__(self, attr: str) -> object: ...
+    else:
+        __pydantic_extra__: Dict[str, object]
 
 
 class SampleInput(BaseModel):
+    """An input message."""
+
     content: str
     """The content of the message."""
 
@@ -52,6 +61,8 @@ class SampleOutput(BaseModel):
 
 
 class SampleUsage(BaseModel):
+    """Token usage details for the sample."""
+
     cached_tokens: int
     """The number of tokens retrieved from cache."""
 
@@ -66,6 +77,8 @@ class SampleUsage(BaseModel):
 
 
 class Sample(BaseModel):
+    """A sample containing the input and output of the evaluation run."""
+
     error: EvalAPIError
     """An object representing an error response from the Eval API."""
 
@@ -98,6 +111,8 @@ class Sample(BaseModel):
 
 
 class OutputItemRetrieveResponse(BaseModel):
+    """A schema representing an evaluation run output item."""
+
     id: str
     """Unique identifier for the evaluation run output item."""
 

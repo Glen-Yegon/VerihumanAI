@@ -1,4 +1,3 @@
-// firebase-history.js
 import { app } from "./firebase.js";
 import {
   getFirestore,
@@ -13,91 +12,119 @@ import {
   limit,
   getDocs,
   serverTimestamp,
-    deleteDoc,
+  deleteDoc,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 const db = getFirestore(app);
+let currentChatDocId = null;
 
-/**
- * Save or update a user's chat history in Firestore.
- * @param {string} userId
- * @param {string} userMessage
- * @param {string} aiReply
- * @param {boolean} forceNew - if true, create a new chat document instead of appending
- */
-// firebase-history.js
-let currentChatDocId = null; // tracks current conversation globally
+export function getCurrentChatDocId() {
+  return currentChatDocId;
+}
+
+export function setCurrentChatDocId(id) {
+  currentChatDocId = id || null;
+}
+
+export function resetCurrentChatDoc() {
+  currentChatDocId = null;
+}
 
 export async function saveChatToHistory(
   userId,
   userMessage,
   aiReply,
   forceNew = false,
-  options = {} // { mode: "chat"|"detect"|"humanize", metadata: {} }
+  options = {} // { mode, metadata, chatId }
 ) {
   try {
-    if (!userId) return;
+    if (!userId) return null;
 
-    const { mode = "chat", metadata = {} } = options;
+    const { mode = "chat", metadata = {}, chatId = null } = options;
 
     const historyRef = collection(db, "history", userId, "chats");
-    const title =
-      (userMessage || "").length > 40
-        ? userMessage.substring(0, 40) + "..."
-        : userMessage || "Conversation";
 
-    const messageEntry = {
+    const userText = (userMessage || "").trim();
+    const titleBase =
+      userText.length > 0
+        ? userText
+        : mode === "detect"
+        ? "AI Detection"
+        : mode === "humanize"
+        ? "Humanizer"
+        : "Conversation";
+
+    const title = titleBase.length > 40 ? titleBase.substring(0, 40) + "..." : titleBase;
+
+    // ✅ FIX: timestamps inside arrays must NOT be serverTimestamp()
+    const now = Date.now();
+
+    const userEntry = {
       sender: "user",
-      text: userMessage,
-      timestamp: new Date().toISOString(),
+      text: userMessage || "",
+      createdAt: now, // ✅ number is allowed in arrays
       mode,
       metadata,
     };
 
-    const aiMessageEntry = {
+    const aiEntry = {
       sender: "ai",
-      text: aiReply,
-      timestamp: new Date().toISOString(),
+      text: aiReply || "",
+      createdAt: now, // ✅ number is allowed in arrays
       mode,
       metadata,
     };
 
-    // 🔹 Force a new conversation or if no current doc
-    if (forceNew || !currentChatDocId) {
+    // ✅ Create new doc if forced OR no chatId
+    if (forceNew || !chatId) {
       const docRef = await addDoc(historyRef, {
         title,
-        messages: [messageEntry, aiMessageEntry],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        messages: [userEntry, aiEntry],
+        createdAt: serverTimestamp(),  // ✅ top-level ok
+        updatedAt: serverTimestamp(),  // ✅ top-level ok
         lastMode: mode,
       });
-      currentChatDocId = docRef.id;
-      console.log("✨ New conversation created with ID:", currentChatDocId);
-      return;
+
+      return docRef.id;
     }
 
-    // 🔹 Append to existing conversation
-    const docRef = doc(db, "history", userId, "chats", currentChatDocId);
-    const docSnap = await getDoc(docRef);
-    const oldMessages = docSnap.exists() ? docSnap.data().messages || [] : [];
+    // ✅ Ordered + race-safe append using transaction
+    const docRef = doc(db, "history", userId, "chats", chatId);
 
-    await updateDoc(docRef, {
-      messages: [...oldMessages, messageEntry, aiMessageEntry],
-      updatedAt: serverTimestamp(),
-      lastMode: mode,
+    const finalChatId = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+
+      // If doc missing, recreate it
+      if (!snap.exists()) {
+        tx.set(docRef, {
+          title,
+          messages: [userEntry, aiEntry],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          lastMode: mode,
+        });
+        return chatId;
+      }
+
+      const data = snap.data();
+      const oldMessages = Array.isArray(data.messages) ? data.messages : [];
+
+      tx.update(docRef, {
+        messages: [...oldMessages, userEntry, aiEntry], // ✅ order preserved
+        updatedAt: serverTimestamp(),                  // ✅ allowed
+        lastMode: mode,
+      });
+
+      return chatId;
     });
 
-    console.log("✅ Chat appended successfully to doc ID:", currentChatDocId);
+    return finalChatId;
   } catch (err) {
     console.error("🔥 Error saving chat:", err);
+    return null;
   }
 }
-
-// Optional helper to reset current chat when starting a new conversation
-export function resetCurrentChatDoc() {
-  currentChatDocId = null;
-}
-
 
 /**
  * Get latest conversation messages for a user (most recent chat doc)
@@ -114,13 +141,20 @@ export async function getLatestChat(userId) {
 
     if (!snapshot.empty) {
       const lastDoc = snapshot.docs[0];
-      currentChatDocId = lastDoc.id;  // 🔹 track the current chat globally
-      return lastDoc.data().messages || [];
+
+      currentChatDocId = lastDoc.id;
+
+      return {
+        chatId: lastDoc.id,
+        messages: lastDoc.data().messages || [],
+      };
     }
 
+    currentChatDocId = null;
     return null;
   } catch (err) {
     console.error("🔥 Error retrieving latest chat:", err);
+    currentChatDocId = null;
     return null;
   }
 }
@@ -190,9 +224,18 @@ export async function getChatById(userUID, chatId) {
     }
 
     const chatData = chatSnap.data();
+
     const messages = (chatData.messages || []).map((msg) => ({
       role: msg.sender === "user" ? "user" : "ai",
-      content: msg.text,
+      content: msg.text || "",
+      mode: msg.mode || "chat",
+      metadata: msg.metadata || {},
+      // Firestore Timestamp -> millis (safe), fallback null
+      createdAt: typeof msg.createdAt === "number"
+  ? msg.createdAt
+  : msg.createdAt?.toMillis
+  ? msg.createdAt.toMillis()
+  : null,
     }));
 
     return { id: chatId, ...chatData, messages };

@@ -2,7 +2,13 @@ import { app } from "../firebase-config/firebase.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
-  import { saveChatToHistory, getLatestChat, saveFullChatSession } from "../firebase-config/firebase-history.js";
+import {
+  saveChatToHistory,
+  getLatestChat,
+  saveFullChatSession,
+  resetCurrentChatDoc,     // ✅ import real one
+  setCurrentChatDocId,     // ✅ optional (only if you want sync)
+} from "../firebase-config/firebase-history.js";
 import {
   ensureUserCredits,
   canUseCredits,
@@ -18,6 +24,7 @@ function isUserLoggedIn() {
     sessionStorage.getItem("userEmail")
   );
 }
+
 
 // Show / Hide modal
 function showAuthModal() {
@@ -396,14 +403,27 @@ if (selectedMode !== "detect") {
   const bubble = createBubble("", "ai");
   await typeText(bubble, modeText[selectedMode]);
 
-  // 🔹 Save mode-switch as AI message in history
-  const userUID = sessionStorage.getItem("userUID");
-  if (userUID && currentChatDocId) {
-    await saveChatToHistory(userUID, "", modeText[selectedMode], isNewConversation, {
+// 🔹 Save mode-switch as AI message in history
+const userUID = sessionStorage.getItem("userUID");
+if (userUID && window.currentChatId) {
+  const savedId = await saveChatToHistory(
+    userUID,
+    "", // no user text
+    modeText[selectedMode], // AI/system text
+    false, // ✅ never force new chat for mode switch
+    {
       mode: selectedMode,
-      metadata: { systemMessage: true } // mark as system message
-    });
+      metadata: { systemMessage: true },
+      chatId: window.currentChatId,
+    }
+  );
+
+  if (savedId) {
+    window.currentChatId = savedId;
+    sessionStorage.setItem("currentChatId", savedId);
+    window.isNewConversation = false;
   }
+}
 }
 
 
@@ -531,6 +551,102 @@ function createBubble(message = "", sender = "ai", options = {}, attachments = [
   bubbleEl.appendChild(btn);
 }
 
+function escapeHTML(str = "") {
+  return str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+// Detect triple-backtick code blocks: ```lang\n...\n```
+function renderAIMessageToHTML(raw = "") {
+  const text = String(raw);
+
+  // Split into segments: code blocks + normal text
+  const parts = text.split(/```/g);
+
+  // If no code fences, just paragraphs
+  if (parts.length === 1) {
+    return `<div class="ai-text">${escapeHTML(text).replaceAll("\n", "<br>")}</div>`;
+  }
+
+  let html = `<div class="ai-rich">`;
+
+  for (let i = 0; i < parts.length; i++) {
+    const chunk = parts[i];
+
+    // Even index => normal text
+    if (i % 2 === 0) {
+      const safe = escapeHTML(chunk).trim();
+      if (safe) {
+        html += `<div class="ai-text">${safe.replaceAll("\n", "<br>")}</div>`;
+      }
+    } else {
+      // Odd index => code block: first line might be language
+      let code = chunk;
+      let lang = "";
+
+      const firstNewline = code.indexOf("\n");
+      if (firstNewline !== -1) {
+        lang = code.slice(0, firstNewline).trim();
+        code = code.slice(firstNewline + 1);
+      }
+
+      html += `
+        <div class="ai-codeblock">
+          ${lang ? `<div class="ai-code-lang">${escapeHTML(lang)}</div>` : ""}
+          <pre><code>${escapeHTML(code.trim())}</code></pre>
+        </div>
+      `;
+    }
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+
+function isImageUrl(url = "") {
+  return /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url);
+}
+
+function extractUrls(text = "") {
+  const matches = text.match(/https?:\/\/[^\s)]+/g);
+  return matches ? matches.map(u => u.replace(/[.,!?)]$/, "")) : [];
+}
+
+/**
+ * Takes the original reply text and returns:
+ * - html: the rendered rich html (text + code blocks)
+ * - images: array of detected image URLs
+ */
+function renderAIWithDetectedMedia(raw = "") {
+  const urls = extractUrls(raw);
+  const images = urls.filter(isImageUrl);
+
+  // Render code blocks + text first
+  let html = renderAIMessageToHTML(raw);
+
+  // Append images below the text/code (ChatGPT-like)
+  if (images.length) {
+    const imgsHTML = images
+      .slice(0, 6) // guard, avoid spam
+      .map(
+        (u) => `
+          <div class="ai-media">
+            <img class="ai-img" src="${u}" alt="image" loading="lazy" />
+          </div>
+        `
+      )
+      .join("");
+
+    html += `<div class="ai-media-wrap">${imgsHTML}</div>`;
+  }
+
+  return { html, images };
+}
 
 // ------------------------
 // CREDITS MODAL CONTROLS
@@ -733,24 +849,38 @@ async function handleSend() {
     const data = await sendPromptToAPI(text, filesToSend);
     const reply = typeof data.reply === "string" ? data.reply : "[No reply]";
 
-    aiBubble.classList.remove("scanning");
-    await typeText(aiBubble, reply);
-    addMessage("ai", reply);
+aiBubble.classList.remove("scanning");
+
+// Render text/code + detect image URLs in the reply and preview them
+const rendered = renderAIWithDetectedMedia(reply);
+aiBubble.innerHTML = rendered.html;
+
+// Add copy button after final HTML is placed
+addCopyButton(aiBubble);
+
+addMessage("ai", reply);
 
     // ✅ Consume credit only after successful reply
     await consumeCredit(userUID);
 
-    await saveChatToHistory(
-      userUID,
-      text || (hasFiles ? "[Sent attachment(s)]" : ""),
-      reply,
-      isNewConversation,
-      {
-        mode: getCurrentMode(),
-        metadata: { model: "chat-model" }
-      }
-    );
-    isNewConversation = false;
+const savedId = await saveChatToHistory(
+  userUID,
+  text || (hasFiles ? "[Sent attachment(s)]" : ""),
+  reply,
+  window.isNewConversation,
+  {
+    mode: getCurrentMode(),
+    metadata: { model: "chat-model" },
+    chatId: window.currentChatId,
+  }
+);
+
+if (savedId) {
+  window.currentChatId = savedId;
+  sessionStorage.setItem("currentChatId", savedId);
+  window.isNewConversation = false;
+}
+
 
     // Optional: check if usedCredits reached max
     const creditInfo = await getCreditInfo(userUID);
@@ -864,14 +994,24 @@ runDetectionBtn.addEventListener("click", async () => {
     // ✅ Consume credit only after AI result
     await consumeCredit(userUID);
 
-    await saveChatToHistory(
-      userUID,
-      text,
-      JSON.stringify({ classification, confidenceScore, explanation }),
-      isNewConversation,
-      { mode: "detect", metadata: { classification, confidenceScore } }
-    );
-    isNewConversation = false;
+const savedId = await saveChatToHistory(
+  userUID,
+  text,
+  JSON.stringify({ classification, confidenceScore, explanation }),
+  window.isNewConversation,
+  {
+    mode: "detect",
+    metadata: { classification, confidenceScore },
+    chatId: window.currentChatId,
+  }
+);
+
+if (savedId) {
+  window.currentChatId = savedId;
+  sessionStorage.setItem("currentChatId", savedId);
+  window.isNewConversation = false;
+}
+
 
     const creditInfo = await getCreditInfo(userUID);
     if (
@@ -924,26 +1064,42 @@ runHumanizerBtn.addEventListener("click", async () => {
       body: JSON.stringify({ text }),
     });
 
-    const data = await res.json();
+    if (!res.ok) {
+  throw new Error("Server error");
+}
+
+const data = await res.json();
     aiBubble.classList.remove("scanning");
     aiBubble.classList.add("humanizer-ai");
 
-    await typeText(aiBubble, data.humanized_text);
-    addCopyButton(aiBubble);
+aiBubble.innerHTML = renderAIMessageToHTML(data.humanized_text);
+addCopyButton(aiBubble);
 
     addMessage("ai", data.humanized_text);
 
     // ✅ Consume credit only after successful reply
     await consumeCredit(userUID);
 
-    await saveChatToHistory(
-      userUID,
-      text,
-      data.humanized_text,
-      isNewConversation,
-      { mode: "humanize", metadata: { model: "humanizer-model" } }
-    );
-    isNewConversation = false;
+const savedId = await saveChatToHistory(
+  userUID,
+  text,
+  data.humanized_text,
+  window.isNewConversation,
+  {
+    mode: "humanize",
+    metadata: { model: "humanizer-model" },
+    chatId: window.currentChatId,
+  }
+);
+
+if (savedId) {
+  window.currentChatId = savedId;
+  sessionStorage.setItem("currentChatId", savedId);
+  window.isNewConversation = false;
+}
+
+if (savedId) window.currentChatId = savedId;
+isNewConversation = false;
 
     humanizerUI.classList.remove("hidden");
     if (!chatContainer.contains(humanizerUI)) {
@@ -976,30 +1132,38 @@ runHumanizerBtn.addEventListener("click", async () => {
 // ------------------------
 // Load previous chat on start
 // ------------------------
+// ------------------------
+// Load previous chat on start
+// ------------------------
 async function init() {
   const userUID = sessionStorage.getItem("userUID");
   if (!userUID) return;
 
   try {
-    // 🔐 Ensure credits doc exists
     await ensureUserCredits(userUID);
 
-    // 🚫 Block immediately if credits exhausted
     const allowed = await creditGuard();
     if (!allowed) return;
 
-    const latestMessages = await getLatestChat(userUID);
+    // ✅ NEW: getLatestChat now returns { chatId, messages }
+    const latest = await getLatestChat(userUID);
+    const latestMessages = latest?.messages || [];
+
+    // ✅ store pointers for saving/appending later
+    window.currentChatId = latest?.chatId || null;
+if (window.currentChatId) sessionStorage.setItem("currentChatId", window.currentChatId);
+else sessionStorage.removeItem("currentChatId");
 
     if (!Array.isArray(latestMessages) || latestMessages.length === 0) {
       isNewConversation = true;
       currentMode = "chat";
 
       modeButtons.forEach(btn => {
-        btn.classList.remove("active");
-        if (btn.dataset.mode === currentMode) btn.classList.add("active");
+        btn.classList.toggle("active", btn.dataset.mode === currentMode);
       });
 
       updateModeUI();
+      toggleScrollButton();
       return;
     }
 
@@ -1020,17 +1184,15 @@ async function init() {
     currentMode = lastModeMessage?.mode || "chat";
 
     modeButtons.forEach(btn => {
-      btn.classList.remove("active");
-      if (btn.dataset.mode === currentMode) btn.classList.add("active");
+      btn.classList.toggle("active", btn.dataset.mode === currentMode);
     });
 
     updateModeUI();
-
   } catch (err) {
     console.warn("Could not load latest chat:", err);
     currentMode = "chat";
     updateModeUI();
-    chatInput.focus();
+    chatInput?.focus?.();
   }
 
   toggleScrollButton();
@@ -1039,15 +1201,6 @@ async function init() {
 
 
 
-  // ------------------------
-  // New Chat button logic
-  // ------------------------
-
-  let isNewConversation = false;
-function resetCurrentChatDoc() {
-  currentChatDocId = null;
-}
-
 
 // ------------------------
 // Start a new chat
@@ -1055,26 +1208,47 @@ function resetCurrentChatDoc() {
 async function startNewChat() {
   const userUID = sessionStorage.getItem("userUID");
 
-  if (userUID && currentChatMessages.length > 0) {
+  // ✅ Save session snapshot (optional feature you already had)
+  if (userUID && Array.isArray(currentChatMessages) && currentChatMessages.length > 0) {
     await saveFullChatSession(userUID, currentChatMessages);
   }
 
-  // 🔹 Reset current chat doc
-  resetCurrentChatDoc();  // sets currentChatDocId = null
+  // ✅ Reset Firestore pointer in firebase-history.js
+  resetCurrentChatDoc(); // sets currentChatDocId = null (internal module state)
 
+  // ✅ Reset UI pointer (THIS is what your app should use everywhere now)
+  window.currentChatId = null;
+  // ✅ Clear shareable chat link from URL
+window.history.pushState({}, "", window.location.pathname);
+sessionStorage.removeItem("currentChatId");
+
+  // ✅ Reset local UI memory
   chatContainer.innerHTML = "";
   currentChatMessages = [];
-  isNewConversation = true;
-  
+window.isNewConversation = true;
+
+  // ✅ Optional: reset current mode to chat (recommended)
+  currentMode = "chat";
+  localStorage.setItem("verihuman_mode", "chat");
+
+  // Update mode buttons UI
+  modeButtons.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === "chat");
+  });
+
+  // Update the UI panels (chat input visible, others hidden)
+  updateModeUI();
+
+  // Banner
   const msg = document.createElement("div");
   msg.className = "new-chat-banner";
-msg.textContent = "🔹 New Conversation Started 🔹";
-msg.style.color = "#ffffff"; // ensures the text is white
-
+  msg.textContent = "🔹 New Conversation Started 🔹";
+  msg.style.color = "#ffffff";
   chatContainer.appendChild(msg);
 
-  detectInput.value = "";
-  humanizeInput.value = "";
+  // Reset mode inputs
+  if (detectInput) detectInput.value = "";
+  if (humanizeInput) humanizeInput.value = "";
 
   scrollToBottom();
 }

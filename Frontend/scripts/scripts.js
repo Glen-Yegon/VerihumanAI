@@ -1,5 +1,9 @@
-import { getAllChats, getChatById } from "../firebase-config/firebase-history.js";
-import { deleteChatHistory } from "../firebase-config/firebase-history.js";
+import {
+  getAllChats,
+  getChatById,
+  deleteChatHistory,
+  setCurrentChatDocId,
+} from "../firebase-config/firebase-history.js";
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -109,9 +113,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const userAvatar = document.getElementById("user-avatar");
 
   // globals
-  window.currentChatId = null;
-  window.currentChatMessages = [];
-  window.isNewConversation = false;
+window.currentChatId = window.currentChatId ?? null;
+window.currentChatMessages = window.currentChatMessages ?? [];
+window.isNewConversation = window.isNewConversation ?? false;
 
   if (!chatHistoryList || !chatContainer) {
     console.error("❌ Missing sidebar or chat container!");
@@ -195,7 +199,6 @@ async function loadChatHistory() {
 // if using module imports:
 // import { getChatById } from './firebase-history.js';
 // import { createBubble } from './ui.js';
-
 async function loadChatIntoContainer(chatId) {
   const userUID = sessionStorage.getItem("userUID");
   if (!userUID) {
@@ -203,9 +206,26 @@ async function loadChatIntoContainer(chatId) {
     return;
   }
 
+  // ✅ Mark as NOT a new conversation (prevents creating new chat doc on next save)
+  window.isNewConversation = false;
+
+  // ✅ Store current chat ID globally (UI pointer)
+  window.currentChatId = chatId;
+
+  // ✅ Keep in sessionStorage if you use it elsewhere (optional)
+  sessionStorage.setItem("currentChatId", chatId);
+
   // Update URL (shareable) without reloading
   const newUrl = `${window.location.origin}${window.location.pathname}?chat=${encodeURIComponent(chatId)}`;
   window.history.pushState({ chatId }, "", newUrl);
+
+  // ✅ Sync firebase-history.js internal pointer so saveChatToHistory appends to this chat
+  // You must add `setCurrentChatDocId()` export in firebase-history.js (see step 2 below)
+  try {
+    if (typeof setCurrentChatDocId === "function") setCurrentChatDocId(chatId);
+  } catch (e) {
+    console.warn("⚠️ Could not sync currentChatDocId in firebase-history.js:", e);
+  }
 
   // Fetch chat data
   let chatData;
@@ -215,6 +235,7 @@ async function loadChatIntoContainer(chatId) {
     console.error("Error fetching chat:", err);
     return;
   }
+
   if (!chatData) {
     console.warn("Chat not found:", chatId);
     return;
@@ -226,39 +247,49 @@ async function loadChatIntoContainer(chatId) {
     return;
   }
 
-  // Clear existing UI and local memory (if using)
+  // Clear UI + local memory
   chatContainer.innerHTML = "";
-  // if you keep currentChatMessages globally, set it:
+
   if (window.currentChatMessages && Array.isArray(window.currentChatMessages)) {
     window.currentChatMessages.length = 0;
   } else {
     window.currentChatMessages = [];
   }
 
-  // Render messages
-  chatData.messages.forEach((msg) => {
-    // if createBubble is global:
+  // Render messages (with mode styling if present)
+  (chatData.messages || []).forEach((msg) => {
+    const sender = msg.role === "user" ? "user" : "ai";
+
+    let bubble;
     if (typeof window.createBubble === "function") {
-      window.createBubble(msg.content, msg.role === "user" ? "user" : "ai");
+      bubble = window.createBubble(msg.content, sender);
     } else if (typeof createBubble === "function") {
-      createBubble(msg.content, msg.role === "user" ? "user" : "ai");
+      bubble = createBubble(msg.content, sender);
     } else {
-      // fallback simple rendering to avoid crash
       const p = document.createElement("div");
       p.textContent = `${msg.role}: ${msg.content}`;
       chatContainer.appendChild(p);
+      bubble = null;
+    }
+
+    // ✅ Apply styling based on mode (if your getChatById returns mode/metadata)
+    // msg.mode: "chat" | "detect" | "humanize"
+    // msg.metadata.systemMessage: true
+    if (bubble) {
+      if (msg.metadata?.systemMessage) bubble.classList.add("system-message");
+      if (msg.mode === "detect") bubble.classList.add("detect-result");
+      if (msg.mode === "humanize") bubble.classList.add("humanizer-ai");
     }
 
     // keep local copy
     window.currentChatMessages.push({
-      sender: msg.role === "user" ? "user" : "ai",
+      sender,
       text: msg.content,
-      timestamp: new Date().toISOString(),
+      timestamp: msg.timestamp || new Date().toISOString(),
+      mode: msg.mode || "chat",
+      metadata: msg.metadata || {},
     });
   });
-
-  // store current chatID in memory for later saves
-  window.currentChatId = chatId;
 
   // scroll to bottom
   chatContainer.scrollTop = chatContainer.scrollHeight;
