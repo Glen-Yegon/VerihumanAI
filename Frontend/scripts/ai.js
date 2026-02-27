@@ -16,7 +16,13 @@ import {
   getCreditInfo
 } from "../firebase-config/firebase-credits.js";
 
-
+// ✅ OPTIONAL (recommended): auto-switch between local + render without breaking anything
+const API_BASE =
+  window.location.hostname.includes("localhost") ||
+  window.location.hostname.includes("127.0.0.1")
+    ? "http://127.0.0.1:8000"
+    : "https://verihumanai.onrender.com";
+    
 // Check if user is logged in
 function isUserLoggedIn() {
   return (
@@ -783,14 +789,14 @@ if (files && files.length) {
     form.append("files", toSend);
   }
 
-  res = await fetch("https://verihumanai.onrender.com/api/chat", {
+res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     body: form,
   });
     } else {
       // No files → keep JSON (your old behavior)
       const body = { prompt: promptText };
-      res = await fetch("https://verihumanai.onrender.com/api/chat", {
+      res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -908,7 +914,7 @@ if (savedId) {
 window.handleSend = handleSend;
 
 // ------------------------
-// DETECTION MODE
+// DETECTION MODE (CLEAN UI)
 // ------------------------
 runDetectionBtn.addEventListener("click", async () => {
   const userUID = sessionStorage.getItem("userUID");
@@ -928,62 +934,289 @@ runDetectionBtn.addEventListener("click", async () => {
   runDetectionBtn.disabled = true;
 
   try {
-    const res = await fetch("https://verihumanai.onrender.com/api/detect", {
+    const res = await fetch(`${API_BASE}/api/detect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ document: text }),
     });
 
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+
     const data = await res.json();
     aiBubble.classList.remove("scanning");
 
+    // ----------------------------
+    // Helpers
+    // ----------------------------
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const pct = (n) => `${clamp(Number(n || 0), 0, 100).toFixed(1)}%`;
+
+    function labelToFriendly(classification = "") {
+      if (classification === "AI_ONLY") return "AI-written";
+      if (classification === "HUMAN_ONLY") return "Human-written";
+      if (classification === "MIXED") return "Mixed / Uncertain";
+      return "Uncertain";
+    }
+
+    function confidenceLabel(aiPct, words) {
+      if (words < 100) return "Low confidence (text is short)";
+      if (aiPct >= 90 || aiPct <= 10) return "High confidence";
+      if (aiPct >= 75 || aiPct <= 25) return "Medium confidence";
+      return "Low–Medium confidence";
+    }
+
+    // Convert technical signals to plain language (keep short)
+    function explainSignals(features = {}) {
+      const ttr = Number(features.ttr ?? 0);
+      const rep = Number(features.rep_bigram_ratio ?? 0);
+      const burst = Number(features.burstiness ?? 0);
+
+      const bullets = [];
+
+      // Vocabulary variety
+      if (ttr && ttr < 0.38) bullets.push("Vocabulary variety looks low (more repetitive wording).");
+      else if (ttr) bullets.push("Vocabulary variety looks normal.");
+
+      // Repetition
+      if (rep > 0.1) bullets.push("Repeated phrasing patterns show up across sentences.");
+      else bullets.push("Not much repeated phrasing detected.");
+
+      // Rhythm
+      if (burst && burst < 0.2) bullets.push("Sentence lengths are very uniform (often AI-like).");
+      else if (burst) bullets.push("Sentence length variation looks natural.");
+
+      return bullets.slice(0, 4);
+    }
+
+    function pickTopImpactSentences(sentences = [], count = 5) {
+      if (!Array.isArray(sentences)) return [];
+      return sentences
+        .filter((s) => s && typeof s.sentence === "string" && s.sentence.trim())
+        .map((s) => ({
+          text: s.sentence.trim(),
+          ai: Number(s.generated_prob ?? 0),
+          highlighted: !!s.highlighted,
+        }))
+        .sort((a, b) => b.ai - a.ai)
+        .slice(0, count);
+    }
+
+    // ----------------------------
+    // Extract values from backend
+    // ----------------------------
     const classification = data.document_classification || "UNKNOWN";
+
     let confidenceScore = 0;
     if (data.explanation) {
       const match = data.explanation.match(/Confidence Score:\s*([\d.]+)%/);
       if (match) confidenceScore = parseFloat(match[1]);
     }
-    const explanation = data.explanation || "No explanation provided.";
+    confidenceScore = clamp(confidenceScore, 0, 100);
 
-    // Build result UI
+    const ts = data.text_stats || {};
+    const features = ts?.writing_stats?.features || {};
+    const engine = ts?.writing_stats?.engine || "Hybrid";
+    const sentences = ts?.sentences || [];
+
+    const words =
+      Number(features.n_words ?? 0) ||
+      text.split(/\s+/).filter(Boolean).length ||
+      0;
+
+    const totalSentences = Number(ts.total_sentences ?? sentences.length ?? 0);
+    const highlightedCount = Number(ts.highlighted_as_ai ?? 0);
+
+    const aiPct = confidenceScore;
+    const humanPct = 100 - confidenceScore;
+
+    // ----------------------------
+    // Build UI
+    // ----------------------------
     const container = document.createElement("div");
     container.style.display = "flex";
     container.style.flexDirection = "column";
-    container.style.alignItems = "center";
-    container.style.gap = "10px";
+    container.style.gap = "12px";
     container.style.fontFamily = "'Exo 2', sans-serif";
+    container.style.width = "100%";
 
-    const confidenceEl = document.createElement("div");
-    confidenceEl.textContent = `AI Likeliness: ${confidenceScore.toFixed(1)}%`;
-    confidenceEl.style.fontSize = "1.3rem";
-    confidenceEl.style.fontWeight = "700";
-    confidenceEl.style.color = "#8ab6f9";
-    container.appendChild(confidenceEl);
+    // Header
+    const header = document.createElement("div");
+    header.style.display = "flex";
+    header.style.flexDirection = "column";
+    header.style.alignItems = "center";
+    header.style.gap = "6px";
 
-    const classEl = document.createElement("div");
-    classEl.textContent = `Classification: ${classification}`;
-    classEl.style.fontWeight = "600";
-    container.appendChild(classEl);
+    const title = document.createElement("div");
+    title.textContent = "AI Detection Result";
+    title.style.fontWeight = "800";
+    title.style.fontSize = "1.05rem";
+    header.appendChild(title);
 
-    const explEl = document.createElement("div");
-    explEl.textContent = explanation.length > 180 ? explanation.slice(0, 180) + "..." : explanation;
-    explEl.style.fontSize = "0.9rem";
-    explEl.style.textAlign = "center";
-    container.appendChild(explEl);
-
-    if (data.text_stats) {
-      const ts = data.text_stats;
-      const statsEl = document.createElement("div");
-      statsEl.style.fontSize = "0.85rem";
-      statsEl.style.textAlign = "center";
-      statsEl.innerHTML = `
-        • Total Sentences: ${ts.total_sentences}<br>
-        • Highlighted as AI: ${ts.highlighted_as_ai}<br>
-        ${ts.burstiness != null ? `• Burstiness: ${ts.burstiness}<br>` : ""}
-      `;
-      container.appendChild(statsEl);
+    if (words < 100) {
+      const warn = document.createElement("div");
+      warn.textContent = "⚠️ Short text (under 100 words). The result may be less accurate.";
+      warn.style.fontSize = "0.9rem";
+      warn.style.opacity = "0.9";
+      warn.style.textAlign = "center";
+      header.appendChild(warn);
     }
 
+    container.appendChild(header);
+
+    // Score
+    const scoreWrap = document.createElement("div");
+    scoreWrap.style.display = "flex";
+    scoreWrap.style.flexDirection = "column";
+    scoreWrap.style.alignItems = "center";
+    scoreWrap.style.gap = "4px";
+
+    const scoreEl = document.createElement("div");
+    scoreEl.textContent = `AI likelihood: ${pct(aiPct)}`;
+    scoreEl.style.fontSize = "1.35rem";
+    scoreEl.style.fontWeight = "900";
+    scoreEl.style.color = "#8ab6f9";
+    scoreWrap.appendChild(scoreEl);
+
+    const classEl = document.createElement("div");
+    classEl.textContent = `Overall: ${labelToFriendly(classification)} • ${confidenceLabel(aiPct, words)}`;
+    classEl.style.fontWeight = "600";
+    classEl.style.textAlign = "center";
+    scoreWrap.appendChild(classEl);
+
+    const metaEl = document.createElement("div");
+    metaEl.textContent = `Engine: ${engine} • ${words} words • ${totalSentences} sentences`;
+    metaEl.style.fontSize = "0.85rem";
+    metaEl.style.opacity = "0.85";
+    metaEl.style.textAlign = "center";
+    scoreWrap.appendChild(metaEl);
+
+    container.appendChild(scoreWrap);
+
+    // Percent cards (AI + Human only)
+    const probsWrap = document.createElement("div");
+    probsWrap.style.display = "grid";
+    probsWrap.style.gridTemplateColumns = "1fr 1fr";
+    probsWrap.style.gap = "8px";
+
+    function probCard(label, value) {
+      const box = document.createElement("div");
+      box.style.border = "1px solid rgba(255,255,255,0.12)";
+      box.style.borderRadius = "12px";
+      box.style.padding = "10px";
+      box.style.textAlign = "center";
+
+      const l = document.createElement("div");
+      l.textContent = label;
+      l.style.fontSize = "0.85rem";
+      l.style.opacity = "0.85";
+
+      const v = document.createElement("div");
+      v.textContent = pct(value);
+      v.style.fontSize = "1.05rem";
+      v.style.fontWeight = "800";
+
+      box.appendChild(l);
+      box.appendChild(v);
+      return box;
+    }
+
+    probsWrap.appendChild(probCard("AI", aiPct));
+    probsWrap.appendChild(probCard("Human", humanPct));
+    container.appendChild(probsWrap);
+
+    // Why section (short)
+    const whyWrap = document.createElement("div");
+    whyWrap.style.border = "1px solid rgba(255,255,255,0.12)";
+    whyWrap.style.borderRadius = "12px";
+    whyWrap.style.padding = "12px";
+
+    const whyTitle = document.createElement("div");
+    whyTitle.textContent = "Why this score?";
+    whyTitle.style.fontWeight = "800";
+    whyTitle.style.marginBottom = "8px";
+    whyWrap.appendChild(whyTitle);
+
+    const bullets = explainSignals(features);
+    const ul = document.createElement("ul");
+    ul.style.margin = "0";
+    ul.style.paddingLeft = "18px";
+    ul.style.lineHeight = "1.35";
+
+    bullets.forEach((b) => {
+      const li = document.createElement("li");
+      li.textContent = b;
+      ul.appendChild(li);
+    });
+
+    whyWrap.appendChild(ul);
+    container.appendChild(whyWrap);
+
+    // Top impact sentences (optional)
+    const top = pickTopImpactSentences(sentences, 5);
+    if (top.length) {
+      const topWrap = document.createElement("div");
+      topWrap.style.border = "1px solid rgba(255,255,255,0.12)";
+      topWrap.style.borderRadius = "12px";
+      topWrap.style.padding = "12px";
+
+      const topTitle = document.createElement("div");
+      topTitle.textContent = "Top sentences driving the score";
+      topTitle.style.fontWeight = "800";
+      topTitle.style.marginBottom = "10px";
+      topWrap.appendChild(topTitle);
+
+      top.forEach((s) => {
+        const row = document.createElement("div");
+        row.style.padding = "10px";
+        row.style.borderRadius = "10px";
+        row.style.marginBottom = "8px";
+        row.style.border = "1px solid rgba(255,255,255,0.10)";
+
+        const sp = clamp(s.ai * 100, 0, 100);
+        const badge = document.createElement("div");
+        badge.textContent = `Sentence AI: ${pct(sp)}`;
+        badge.style.fontSize = "0.82rem";
+        badge.style.opacity = "0.9";
+
+        const sent = document.createElement("div");
+        sent.textContent = s.text;
+        sent.style.marginTop = "6px";
+        sent.style.fontSize = "0.95rem";
+        sent.style.lineHeight = "1.35";
+
+        row.appendChild(badge);
+        row.appendChild(sent);
+        topWrap.appendChild(row);
+      });
+
+      container.appendChild(topWrap);
+    }
+
+    // Imperfection warning
+    const guide = document.createElement("div");
+    guide.style.border = "1px dashed rgba(255,255,255,0.18)";
+    guide.style.borderRadius = "12px";
+    guide.style.padding = "12px";
+    guide.style.fontSize = "0.9rem";
+    guide.style.opacity = "0.95";
+    guide.innerHTML = `
+      <strong>Note:</strong> AI detection is not perfect. Editing, templates, and non-native English can change results.
+      <br><br>
+      <strong>Tip:</strong> For a more reliable scan, use a longer excerpt (150–300+ words).
+    `;
+    container.appendChild(guide);
+
+    // Footer stats (small)
+    const footer = document.createElement("div");
+    footer.style.fontSize = "0.85rem";
+    footer.style.opacity = "0.85";
+    footer.style.textAlign = "center";
+    footer.innerHTML = `
+      • Sentences flagged as AI-like: ${highlightedCount}
+    `;
+    container.appendChild(footer);
+
+    // Render bubble
     aiBubble.innerHTML = "";
     aiBubble.appendChild(container);
     aiBubble.classList.add("detect-result");
@@ -994,24 +1227,23 @@ runDetectionBtn.addEventListener("click", async () => {
     // ✅ Consume credit only after AI result
     await consumeCredit(userUID);
 
-const savedId = await saveChatToHistory(
-  userUID,
-  text,
-  JSON.stringify({ classification, confidenceScore, explanation }),
-  window.isNewConversation,
-  {
-    mode: "detect",
-    metadata: { classification, confidenceScore },
-    chatId: window.currentChatId,
-  }
-);
+    const savedId = await saveChatToHistory(
+      userUID,
+      text,
+      JSON.stringify({ classification, confidenceScore, explanation: data.explanation }),
+      window.isNewConversation,
+      {
+        mode: "detect",
+        metadata: { classification, confidenceScore },
+        chatId: window.currentChatId,
+      }
+    );
 
-if (savedId) {
-  window.currentChatId = savedId;
-  sessionStorage.setItem("currentChatId", savedId);
-  window.isNewConversation = false;
-}
-
+    if (savedId) {
+      window.currentChatId = savedId;
+      sessionStorage.setItem("currentChatId", savedId);
+      window.isNewConversation = false;
+    }
 
     const creditInfo = await getCreditInfo(userUID);
     if (
@@ -1021,7 +1253,6 @@ if (savedId) {
       showCreditsModal();
       disableAllInputs();
     }
-
   } catch (err) {
     console.error("❌ Detection error:", err);
     aiBubble.textContent = "Detection failed. Try again.";
@@ -1032,7 +1263,6 @@ if (savedId) {
     scrollToBottom();
   }
 });
-
 
 
 
@@ -1058,7 +1288,7 @@ runHumanizerBtn.addEventListener("click", async () => {
   runHumanizerBtn.disabled = true;
 
   try {
-    const res = await fetch("https://verihumanai.onrender.com/api/humanize", {
+    const res = await fetch(`${API_BASE}/api/humanize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
