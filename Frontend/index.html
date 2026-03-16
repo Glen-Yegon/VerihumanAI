@@ -109,10 +109,43 @@
 
 <body>
 
-<p style="display:none;">
-VeriHuman is an AI platform that allows users to detect AI-generated text,
-humanize AI content, and interact with AI tools securely.
-</p>
+  <!-- Sign-in Required Modal -->
+<div id="auth-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle" aria-describedby="authDesc">
+  <div class="auth-modal__backdrop" data-close="true"></div>
+
+  <div class="auth-modal__panel" role="document">
+    <div class="auth-modal__icon" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2l1.2 6.2L19.5 12l-6.3 3.8L12 22l-1.2-6.2L4.5 12l6.3-3.8L12 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <h3 id="authTitle" class="auth-modal__title">Sign in to continue</h3>
+    <p id="authDesc" class="auth-modal__desc">
+      Please sign in to access VeriHuman AI features and keep your workspace secure.
+    </p>
+
+    <div class="auth-modal__actions">
+      <button id="go-signin-btn" class="auth-btn auth-btn--primary" type="button">
+        Sign in
+      </button>
+      <button id="close-auth-modal" class="auth-btn auth-btn--ghost" type="button">
+        Not now
+      </button>
+    </div>
+
+    <p class="auth-modal__fineprint">
+      VeriHuman helps users analyze text to detect AI-generated content, humanize writing, and improve readability. 
+      Sign in to access these tools, manage your credits, and securely save your activity.
+    </p>
+
+    <p class="auth-modal__legal">
+      <a href="privacy-policy.html" target="_blank">Privacy Policy</a> •
+      <a href="terms-and-conditions.html" target="_blank">Terms & Conditions</a>
+    </p>
+  </div>
+</div>
+
 
   <!-- Particles Background -->
 <div id="particles-js"></div>
@@ -456,42 +489,6 @@ Matrix-style AI Background -->
 </div>
 
 
-<!-- Sign-in Required Modal -->
-<div id="auth-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle" aria-describedby="authDesc">
-  <div class="auth-modal__backdrop" data-close="true"></div>
-
-  <div class="auth-modal__panel" role="document">
-    <div class="auth-modal__icon" aria-hidden="true">
-      <!-- simple spark icon -->
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2l1.2 6.2L19.5 12l-6.3 3.8L12 22l-1.2-6.2L4.5 12l6.3-3.8L12 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-    </div>
-
-    <h3 id="authTitle" class="auth-modal__title">Sign in to continue</h3>
-    <p id="authDesc" class="auth-modal__desc">
-      Please sign in to access VeriHuman AI features and keep your workspace secure.
-    </p>
-
-    <div class="auth-modal__actions">
-      <button id="go-signin-btn" class="auth-btn auth-btn--primary" type="button">
-        Sign in
-      </button>
-      <button id="close-auth-modal" class="auth-btn auth-btn--ghost" type="button">
-        Not now
-      </button>
-    </div>
-
-<p class="auth-modal__fineprint">
-  We use secure authentication. Your data remains private and encrypted in transit.
-</p>
-
-<p class="auth-modal__legal">
-  <a href="privacy-policy.html" target="_blank">Privacy Policy</a> •
-  <a href="terms-and-conditions.html" target="_blank">Terms & Conditions</a>
-</p>
-  </div>
-</div>
 
   
 
