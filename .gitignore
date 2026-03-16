@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+Backend/venv/
+
+# Environment files
+.env
+.env.*
+Backend/.env
+Backend/verihuman.json
+
+# Python build/cache
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+
+# Editor/system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data / training artifacts
+Backend/detector_data/
+*.csv
+*.jsonl
+*.joblib
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# Optional large media
+*.mp4
+*.mov
+*.avi
+*.webm

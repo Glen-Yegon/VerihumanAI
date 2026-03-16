@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Basic Meta -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verihuman - User Profile</title>
+    <meta name="description" content="Manage your VeriHuman AI profile. Check your subscription, usage, and account details securely and easily.">
+    <meta name="keywords" content="Verihuman profile, AI account, subscription management, AI humanizer, user dashboard">
+    <meta name="author" content="Verihuman AI">
+    <link rel="canonical" href="https://verihumanai.com/profile.html">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Verihuman AI" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#00246b">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="styles/profile.css">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Inter:wght@400;600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Verihuman - User Profile">
+    <meta property="og:description" content="Manage your VeriHuman AI profile. Check your subscription, usage, and account details securely and easily.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://verihumanai.com/profile.html">
+    <meta property="og:image" content="https://verihumanai.com/Images/vERIHUMAN (8).png">
+    <meta property="og:site_name" content="Verihuman AI">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Verihuman - User Profile">
+    <meta name="twitter:description" content="Manage your VeriHuman AI profile. Check your subscription, usage, and account details securely and easily.">
+    <meta name="twitter:image" content="https://verihumanai.com/Images/vERIHUMAN (8).png">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "VeriHuman User Profile",
+      "url": "https://verihumanai.com/profile.html",
+      "description": "Manage your VeriHuman AI profile. Check your subscription, usage, and account details securely and easily."
+    }
+    </script>
+</head>
+
+ 
+<body>
+  <!-- Back Button -->
+<button id="back-btn" class="back-button" aria-label="Go Back">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#cadcfc" viewBox="0 0 24 24">
+    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+  </svg>
+  <span>Back</span>
+</button>
+
+
+      <div class="vignette"></div>
+  <div class="grid-overlay"></div>
+
+  <main class="profile-container">
+<section class="profile-photo-section">
+  <div class="profile-photo-wrapper" aria-label="User profile photo">
+    <img src="default-avatar.png" alt="User Profile Photo" id="profile-photo" />
+  </div>
+</section>
+
+<h1 class="profile-name">
+<span 
+  class="uid-label" 
+  id="uid-label" 
+  style="
+    display:block;
+    font-weight:100;
+    color:#8ab6f9;
+    margin-bottom:6px;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  "
+>
+  User ID:
+</span>
+  <span id="profile-uid" class="masked-uid">•••••••••••••••••••••••</span>
+  <button id="toggle-uid-visibility" aria-label="Toggle user ID visibility" title="Show User ID" style="background:none; border:none; cursor:pointer;">
+    <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#cadcfc" viewBox="0 0 24 24">
+      <path d="M12 5c-7 0-9 7-9 7s2 7 9 7 9-7 9-7-2-7-9-7zm0 12c-2.76 0-5-2.24-5-5s2.24-5 5-5
+        5 2.24 5 5-2.24 5-5 5z"/>
+      <circle cx="12" cy="12" r="2.5"/>
+    </svg>
+  </button>
+</h1>
+
+
+<div class="info-group">
+  <label><span class="shuffle-text">Login Status:</span></label>
+  <p><span id="login-status">Checking...</span></p>
+</div>
+
+<div class="info-group" id="nationality-group" style="display: none;">
+  <label><span class="shuffle-text">Nationality:</span></label>
+  <div class="nationality-wrapper">
+    <p id="nationality-display"></p>
+    <select id="nationality-select">
+      <option value="">Select your nationality</option>
+      <option value="Kenyan">Kenyan</option>
+      <option value="Ugandan">Ugandan</option>
+      <option value="Tanzanian">Tanzanian</option>
+      <option value="Nigerian">Nigerian</option>
+      <option value="South African">South African</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+</div>
+
+
+
+
+<div class="info-group">
+  <label><span class="shuffle-text">Payment Package:</span></label>
+  <p><span id="payment-package" class="shuffle-text">Basic (Configure Later)</span></p>
+</div>
+
+<div class="info-group">
+  <label><span class="shuffle-text">Remaining Credits:</span></label>
+  <p><span id="credits-used" >Loading...</span></p>
+</div>
+
+<div class="cta-group">
+  <button id="payment-cta" class="btn-primary" type="button">Go to Payment Page</button>
+<button id="logout-btn" class="btn-secondary" type="button">Log Out</button>
+</div>
+
+    </section>
+  </main>
+
+  
+<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+
+
+
+
+
+  <!-- Your custom JS -->
+     <script src="scripts/credits.js" type="module"></script>
+  <script src="scripts/profile.js" type="module"></script>
+
+
+  <!-- Init particles -->
+  <script type="module">
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { app } from "./firebase-config/firebase.js";
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const DEFAULT_AVATAR = "./default-avatar.png";
+
+async function getUserPhotoURL(uid) {
+  if (!uid) return DEFAULT_AVATAR;
+
+  try {
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+
+    // 1. Primary source: Firestore users/{uid}.photoURL
+    if (userSnap.exists()) {
+      const data = userSnap.data() || {};
+      if (data.photoURL && typeof data.photoURL === "string" && data.photoURL.trim()) {
+        return data.photoURL.trim();
+      }
+    }
+
+    // 2. Backup source: sessionStorage
+    const sessionPhoto = sessionStorage.getItem("profilePhoto");
+    if (sessionPhoto && sessionPhoto.trim()) {
+      return sessionPhoto.trim();
+    }
+
+    // 3. Final fallback
+    return DEFAULT_AVATAR;
+  } catch (error) {
+    console.error("Error loading user photo:", error);
+
+    const sessionPhoto = sessionStorage.getItem("profilePhoto");
+    if (sessionPhoto && sessionPhoto.trim()) {
+      return sessionPhoto.trim();
+    }
+
+    return DEFAULT_AVATAR;
+  }
+}
+
+function applyPhotoToImg(imgEl, photoURL) {
+  if (!imgEl) return;
+  imgEl.src = photoURL || DEFAULT_AVATAR;
+  imgEl.alt = "User Profile Photo";
+}
+
+function applyPhotoToBackground(el, photoURL) {
+  if (!el) return;
+  el.style.backgroundImage = `url('${photoURL || DEFAULT_AVATAR}')`;
+  el.style.backgroundSize = "cover";
+  el.style.backgroundPosition = "center";
+  el.style.borderRadius = "50%";
+}
+
+// Example usage on auth state change
+onAuthStateChanged(auth, async (user) => {
+  const profilePhotoImg = document.getElementById("profile-photo");
+  const userAvatar = document.getElementById("user-avatar");
+  const modalAvatar = document.getElementById("modal-avatar");
+
+  if (!user) {
+    applyPhotoToImg(profilePhotoImg, DEFAULT_AVATAR);
+    applyPhotoToBackground(userAvatar, DEFAULT_AVATAR);
+    applyPhotoToBackground(modalAvatar, DEFAULT_AVATAR);
+    return;
+  }
+
+  const photoURL = await getUserPhotoURL(user.uid);
+
+  applyPhotoToImg(profilePhotoImg, photoURL);
+  applyPhotoToBackground(userAvatar, photoURL);
+  applyPhotoToBackground(modalAvatar, photoURL);
+});
+</script>
+
+<script type="module">
+import { app } from "./firebase-config/firebase.js";
+import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+// Handle logout button click
+document.getElementById("logout-btn").addEventListener("click", () => {
+    signOut(auth).then(() => {
+        // Clear stored session data
+        sessionStorage.clear();
+        
+        // Redirect to login page
+        window.location.href = "login.html";
+    }).catch((error) => {
+        console.error("Error signing out:", error);
+    });
+});
+</script>
+
+<script>
+document.getElementById("back-btn").addEventListener("click", () => {
+  window.history.back();
+});
+</script>
+
+</body>
+</html>

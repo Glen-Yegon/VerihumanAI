@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+openai
+httpx
+pydantic
+python-dotenv
+python-multipart
+scikit-learn==1.5.1
+numpy==2.0.2
+joblib==1.4.2
+textstat==0.7.4
+requests
+firebase-admin

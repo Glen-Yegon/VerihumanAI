@@ -1,0 +1,78 @@
+{
+  "id": "resp_68d08da4f7b88195829ee1a23406a89a0aa002a5ab8997c5",
+  "created_at": 1758498212.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-nano-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68d08da5661c8195b0a9da15d6673fe10aa002a5ab8997c5",
+      "summary": [],
+      "type": "reasoning",
+      "content": null,
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68d08da5a2b08195b2d1d050537e98520aa002a5ab8997c5",
+      "content": [
+        {
+          "annotations": [],
+          "text": "Hi there! How can I help today? If you\u2019d like, tell me what you\u2019re looking for\u2014answers to a question, help with writing or coding, study tips, planning something, or just a chat.",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [],
+  "top_p": 1.0,
+  "background": false,
+  "conversation": null,
+  "max_output_tokens": 512,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 8,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 50,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "total_tokens": 58
+  },
+  "user": null,
+  "billing": {
+    "payer": "developer"
+  },
+  "store": true
+}

@@ -1,0 +1,63 @@
+{
+  "version": 2,
+  "name": "verihuman",
+
+  "cleanUrls": true,
+  "trailingSlash": false,
+
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/pay", "destination": "/pay.html" },
+    { "source": "/profile", "destination": "/profile.html" },
+    { "source": "/sign", "destination": "/sign.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/help", "destination": "/help.html" }
+  ],
+
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/pay.html", "destination": "/pay", "permanent": true },
+    { "source": "/profile.html", "destination": "/profile", "permanent": true },
+    { "source": "/sign.html", "destination": "/sign", "permanent": true },
+    { "source": "/about.html", "destination": "/about", "permanent": true },
+    { "source": "/help.html", "destination": "/help", "permanent": true }
+  ],
+
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(css|js|mjs)$",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|ico)$",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    }
+  ]
+}
