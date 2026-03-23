@@ -23,6 +23,11 @@ import hmac
 import hashlib
 import requests
 from datetime import datetime, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from fastapi import Header
+from firebase_admin import auth as firebase_auth
+import smtplib
 
 
 
@@ -84,6 +89,14 @@ except Exception:
     textstat = None
     
 # -------------------- Configuration --------------------
+
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "VeriHuman")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USER)
+
 API_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-nano")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../Frontend")  # relative path from backend folder
@@ -219,6 +232,198 @@ class ChatResponse(BaseModel):
 
 
 # -------------------- Helpers --------------------
+def format_money(currency: str, amount_major: float) -> str:
+    currency = (currency or "KES").upper()
+    if currency == "USD":
+        return f"${amount_major:,.2f}"
+    return f"KES {amount_major:,.0f}"
+
+
+def build_receipt_email_html(
+    *,
+    email: str,
+    reference: str,
+    currency: str,
+    amount_major: float,
+    credits_added: int,
+    paid_at_text: str,
+    uid: str,
+    source: str,
+):
+    amount_text = format_money(currency, amount_major)
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>VeriHuman Receipt</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f4f8ff;font-family:Inter,Arial,sans-serif;color:#12213f;">
+      <div style="max-width:700px;margin:0 auto;padding:24px 14px;">
+        <div style="background:linear-gradient(135deg,#00246b,#163b96);border-radius:24px 24px 0 0;padding:28px;color:#ffffff;">
+          <h1 style="margin:0 0 8px;font-size:28px;font-family:'Exo 2',Arial,sans-serif;">VeriHuman Receipt</h1>
+          <p style="margin:0;color:#cadcfc;">Your payment has been verified successfully.</p>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid #dbe7ff;border-top:none;border-radius:0 0 24px 24px;padding:24px;">
+          <p style="margin:0 0 18px;line-height:1.7;">
+            Thank you for your payment. Your VeriHuman credits have been added successfully.
+            Below is your receipt summary.
+          </p>
+
+          <div style="display:grid;gap:12px;">
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">Reference</strong>
+              <span>{reference}</span>
+            </div>
+
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">Email</strong>
+              <span>{email}</span>
+            </div>
+
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">Amount Paid</strong>
+              <span>{amount_text}</span>
+            </div>
+
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">Credits Added</strong>
+              <span>{credits_added}</span>
+            </div>
+
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">Paid At</strong>
+              <span>{paid_at_text}</span>
+            </div>
+
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">User ID</strong>
+              <span>{uid}</span>
+            </div>
+
+            <div style="padding:14px;border:1px solid #e8efff;border-radius:16px;background:#f9fbff;">
+              <strong style="display:block;color:#5c6f96;margin-bottom:6px;">Source</strong>
+              <span>{source}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    
+def send_receipt_email(
+    *,
+    to_email: str,
+    reference: str,
+    currency: str,
+    amount_major: float,
+    credits_added: int,
+    paid_at_text: str,
+    uid: str,
+    source: str,
+):
+    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS or not SMTP_FROM_EMAIL:
+        raise RuntimeError("SMTP settings are not configured")
+
+    subject = f"Your VeriHuman Receipt — {reference}"
+
+    html_body = build_receipt_email_html(
+        email=to_email,
+        reference=reference,
+        currency=currency,
+        amount_major=amount_major,
+        credits_added=credits_added,
+        paid_at_text=paid_at_text,
+        uid=uid,
+        source=source,
+    )
+
+    plain_body = f"""
+VeriHuman Receipt
+
+Reference: {reference}
+Email: {to_email}
+Amount: {format_money(currency, amount_major)}
+Credits Added: {credits_added}
+Paid At: {paid_at_text}
+User ID: {uid}
+Source: {source}
+""".strip()
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
+    msg["To"] = to_email
+
+    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(SMTP_FROM_EMAIL, [to_email], msg.as_string())
+        
+def get_bearer_token(authorization: str | None) -> str:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    parts = authorization.strip().split(" ", 1)
+
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    return parts[1].strip()
+
+
+def verify_firebase_bearer_token(authorization: str | None) -> dict:
+    token = get_bearer_token(authorization)
+
+    try:
+        decoded = firebase_auth.verify_id_token(token)
+        return decoded
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
+
+def format_paid_at_for_email(value) -> str:
+    try:
+        if value is None:
+            return "N/A"
+
+        # Firestore Timestamp
+        if hasattr(value, "to_datetime"):
+            dt = value.to_datetime()
+            return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        # Python datetime
+        if hasattr(value, "strftime"):
+            dt = value
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                dt = dt.astimezone(timezone.utc)
+            return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        # Unix timestamp in seconds or milliseconds
+        if isinstance(value, (int, float)):
+            ts = float(value)
+            if ts > 1e12:  # milliseconds
+                ts = ts / 1000.0
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        # String fallback
+        return str(value)
+
+    except Exception:
+        return "N/A"
+    
+    
 def extract_text_from_response(resp) -> str:
     """Extract plain text from GPT Responses API safely, with fallback + incomplete handling."""
     try:
@@ -958,7 +1163,7 @@ def process_successful_payment(
     transaction = firestore_db.transaction()
     amount_minor = amount_to_minor(currency, amount_major)
 
-    return _process_payment_transaction(
+    result = _process_payment_transaction(
         transaction=transaction,
         uid=uid,
         email=email,
@@ -970,6 +1175,24 @@ def process_successful_payment(
         source=source,
         paystack_payload=paystack_payload,
     )
+
+    # only send if this receipt was newly processed
+    if not result.get("already_processed", False):
+        try:
+            send_receipt_email(
+                to_email=email,
+                reference=reference,
+                currency=currency,
+                amount_major=amount_major,
+                credits_added=credits_added,
+                paid_at_text=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                uid=uid,
+                source=source,
+            )
+        except Exception as e:
+            logger.exception(f"Failed to send receipt email for {reference}: {e}")
+
+    return result
     
 # ----------------- Models -----------------
 
@@ -1570,6 +1793,62 @@ async def paystack_webhook(req: Request):
     except Exception as e:
         logger.exception("Paystack webhook failed")
         raise HTTPException(status_code=500, detail="Webhook processing failed")
+    
+@app.post("/api/receipts/send/{reference}")
+async def resend_receipt(
+    reference: str,
+    authorization: str | None = Header(default=None),
+):
+    try:
+        decoded_token = verify_firebase_bearer_token(authorization)
+        uid = (decoded_token.get("uid") or "").strip()
+
+        if not uid:
+            raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+        receipt_ref = (
+            firestore_db.collection("payments")
+            .document(uid)
+            .collection("receipts")
+            .document(reference)
+        )
+
+        receipt_snap = receipt_ref.get()
+
+        if not receipt_snap.exists:
+            raise HTTPException(status_code=404, detail="Receipt not found")
+
+        receipt = receipt_snap.to_dict() or {}
+
+        email = (receipt.get("email") or "").strip()
+        if not email:
+            raise HTTPException(status_code=400, detail="Receipt has no email")
+
+        paid_at_value = receipt.get("paidAt")
+        paid_at_text = str(paid_at_value) if paid_at_value is not None else "N/A"
+
+        send_receipt_email(
+            to_email=email,
+            reference=receipt.get("reference") or reference,
+            currency=(receipt.get("currency") or "KES"),
+            amount_major=float(receipt.get("amountMajor") or 0),
+            credits_added=int(receipt.get("creditsAdded") or 0),
+            paid_at_text=paid_at_text,
+            uid=receipt.get("uid") or uid,
+            source=receipt.get("source") or "manual_resend",
+        )
+
+        return {
+            "ok": True,
+            "message": f"Receipt sent successfully to {email}",
+            "reference": reference,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to resend receipt for {reference}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # -------------------- Run with: uvicorn fastapi_gpt5_backend:app --------------------
 if __name__ == "__main__":

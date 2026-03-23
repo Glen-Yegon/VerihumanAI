@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VeriHuman Receipts</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="styles/receipts.css" />
+</head>
+<body>
+
+
+    <div id="pageLoader" class="page-loader">
+  <div class="page-loader__box">
+    <div class="page-loader__logo-wrap">
+      <img src="images/veri-logo.png" alt="VeriHuman logo" class="page-loader__logo" />
+    </div>
+    <div class="page-loader__spinner"></div>
+    <h3>Loading receipts</h3>
+    <p>Retrieving your verified payment history...</p>
+  </div>
+</div>
+
+
+  <div class="receipts-page">
+    <header class="receipts-topbar">
+<div class="brand-area">
+  <div class="brand-logo">
+    <img src="images/veri-logo.png" alt="VeriHuman logo" />
+  </div>
+  <div class="brand-copy">
+    <h1>Receipts</h1>
+    <p>Your verified VeriHuman payment history</p>
+  </div>
+</div>
+
+      <div class="topbar-actions">
+        <button id="backBtn" class="btn btn-light" type="button">Back</button>
+        <button id="printPageBtn" class="btn btn-primary" type="button">Print Page</button>
+      </div>
+    </header>
+
+    <section class="receipts-hero">
+      <div class="hero-left">
+        <p class="hero-kicker">Payments Dashboard</p>
+        <h2>Professional receipt history for every verified credit purchase.</h2>
+        <p class="hero-text">
+          Browse, search, filter, and inspect every saved payment receipt linked to your account.
+        </p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat-card">
+          <span class="stat-label">Total Receipts</span>
+          <strong id="statTotalReceipts" class="skeleton">000</strong>
+        </div>
+
+        <div class="hero-stat-card">
+          <span class="stat-label">Verified</span>
+          <strong id="statVerifiedReceipts" class="skeleton">000</strong>
+        </div>
+
+        <div class="hero-stat-card">
+          <span class="stat-label">Credits Bought</span>
+          <strong id="statTotalCredits" class="skeleton">000</strong>
+        </div>
+
+        <div class="hero-stat-card">
+          <span class="stat-label">Total Spend</span>
+          <strong id="statTotalSpend" class="skeleton">KES 000</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="receipts-layout">
+      <aside class="filters-card">
+        <div class="section-head">
+          <h3>Filter Receipts</h3>
+          <p>Find exactly what you need.</p>
+        </div>
+
+        <div class="filter-group">
+          <label for="searchInput">Search</label>
+          <input
+            id="searchInput"
+            type="text"
+            class="field"
+            placeholder="Reference, email, source, channel..."
+          />
+        </div>
+
+        <div class="filter-group">
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter" class="field">
+            <option value="all">All statuses</option>
+            <option value="success">Success</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="abandoned">Abandoned</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="currencyFilter">Currency</label>
+          <select id="currencyFilter" class="field">
+            <option value="all">All currencies</option>
+            <option value="KES">KES</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="sourceFilter">Source</label>
+          <select id="sourceFilter" class="field">
+            <option value="all">All sources</option>
+            <option value="verify_endpoint">Verify endpoint</option>
+            <option value="webhook">Webhook</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="sortFilter">Sort By</label>
+          <select id="sortFilter" class="field">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="amount_high">Highest amount</option>
+            <option value="amount_low">Lowest amount</option>
+            <option value="credits_high">Most credits</option>
+            <option value="credits_low">Least credits</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Date Range</label>
+          <div class="date-grid">
+            <input id="dateFrom" type="date" class="field" /> <br>
+            <input id="dateTo" type="date" class="field" />
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button id="resetFiltersBtn" class="btn btn-light" type="button">Reset</button>
+        </div>
+      </aside>
+
+      <main class="receipts-main">
+        <div class="list-toolbar">
+          <div>
+            <h3>Your Receipts</h3>
+            <p id="toolbarText" class="skeleton">Loading your receipts...</p>
+          </div>
+
+          <div class="toolbar-right">
+            <span id="resultsCount" class="results-pill">0 shown</span>
+          </div>
+        </div>
+
+        <div id="loadingState" class="state-card">
+          <div class="state-icon loading">VH</div>
+          <h4>Loading receipts</h4>
+          <p>Please wait while we fetch your payment records.</p>
+        </div>
+
+        <div id="errorState" class="state-card hidden">
+          <div class="state-icon error">!</div>
+          <h4>Could not load receipts</h4>
+          <p id="errorText">Something went wrong.</p>
+        </div>
+
+        <div id="emptyState" class="state-card hidden">
+          <div class="state-icon">VH</div>
+          <h4>No receipts found</h4>
+          <p>No receipts matched your current filters.</p>
+        </div>
+
+        <section id="receiptsSection" class="receipts-list-wrap hidden">
+          <div id="receiptsGrid" class="receipts-grid"></div>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div id="receiptModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>Receipt Details</h3>
+          <p>Saved verified payment record</p>
+        </div>
+        <button id="closeModalBtn" class="modal-close" type="button">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <section class="receipt-sheet">
+          <div class="sheet-top">
+            <div>
+              <p class="sheet-kicker">VeriHuman</p>
+              <h4>Payment Receipt</h4>
+              <p class="sheet-subtext">Verified payment record for credits purchase.</p>
+            </div>
+
+            <div class="sheet-top-right">
+              <span id="modalStatusBadge" class="status-badge">status</span>
+              <strong id="modalAmountBig">KES 0</strong>
+            </div>
+          </div>
+
+          <div class="sheet-grid">
+            <div class="sheet-item">
+              <span>Reference</span>
+              <strong id="modalReference">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Email</span>
+              <strong id="modalEmail">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>UID</span>
+              <strong id="modalUid">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Status</span>
+              <strong id="modalStatus">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Currency</span>
+              <strong id="modalCurrency">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Amount</span>
+              <strong id="modalAmount">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Amount (Minor Unit)</span>
+              <strong id="modalAmountMinor">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Credits Added</span>
+              <strong id="modalCredits">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Paid At</span>
+              <strong id="modalPaidAt">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Source</span>
+              <strong id="modalSource">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Processed</span>
+              <strong id="modalProcessed">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Document ID</span>
+              <strong id="modalDocId">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Channel</span>
+              <strong id="modalChannel">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Gateway Response</span>
+              <strong id="modalGatewayResponse">—</strong>
+            </div>
+
+            <div class="sheet-item">
+              <span>Paid At (Paystack)</span>
+              <strong id="modalPaystackPaidAt">—</strong>
+            </div>
+
+            <div class="sheet-item full">
+              <span>Authorization / Method</span>
+              <strong id="modalAuthorization">—</strong>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="modal-actions">
+        <button id="printReceiptBtn" class="btn btn-primary" type="button">Print Receipt</button>
+        <button id="downloadReceiptBtn" class="btn btn-light" type="button">Download JSON</button>
+        <button id="sendReceiptBtn" class="btn btn-primary" type="button">Send to Email</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="scripts/receipts.js"></script>
+</body>
+</html>

@@ -136,7 +136,13 @@
 
 <div class="cta-group">
   <button id="payment-cta" class="btn-primary" type="button">Go to Payment Page</button>
-<button id="logout-btn" class="btn-secondary" type="button">Log Out</button>
+
+  <!-- NEW: Receipts Button -->
+  <button id="receipts-btn" class="btn-secondary" type="button">
+    View Receipts
+  </button>
+
+  <button id="logout-btn" class="btn-secondary" type="button">Log Out</button>
 </div>
 
     </section>
@@ -256,6 +262,12 @@ document.getElementById("logout-btn").addEventListener("click", () => {
 <script>
 document.getElementById("back-btn").addEventListener("click", () => {
   window.history.back();
+});
+</script>
+
+<script>
+document.getElementById("receipts-btn").addEventListener("click", () => {
+  window.location.href = "receipts.html";
 });
 </script>
 
