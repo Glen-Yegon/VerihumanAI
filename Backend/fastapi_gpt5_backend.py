@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from fastapi import Body
 import random
 import re
@@ -231,7 +231,39 @@ class ChatResponse(BaseModel):
     usage: Optional[Dict[str, Any]] = None
 
 
+class PaymentInitRequest(BaseModel):
+    uid: str
+    email: EmailStr
+    currency: str
+    credits: int
+    
+PRICE_PER_CREDIT = {
+    "KES": 10,
+    "USD": 0.1,
+}
+
 # -------------------- Helpers --------------------
+
+SUPPORTED_PAYMENT_CURRENCIES = {"KES", "USD"}
+
+
+def compute_amount_major(currency: str, credits: int) -> float:
+    currency = (currency or "").strip().upper()
+
+    if currency not in SUPPORTED_PAYMENT_CURRENCIES:
+        raise HTTPException(status_code=400, detail="Unsupported currency")
+
+    if credits <= 0:
+        raise HTTPException(status_code=400, detail="Credits must be greater than 0")
+
+    return round(credits * PRICE_PER_CREDIT[currency], 2)
+
+
+def compute_amount_minor(currency: str, credits: int) -> int:
+    amount_major = compute_amount_major(currency, credits)
+    return amount_to_minor(currency, amount_major)
+
+
 def format_money(currency: str, amount_major: float) -> str:
     currency = (currency or "KES").upper()
     if currency == "USD":
@@ -1613,18 +1645,22 @@ async def initialize_payment(req: Request):
         email = (data.get("email") or "").strip()
         currency = (data.get("currency") or "KES").strip().upper()
         credits = int(data.get("credits") or 0)
-        amount_major = float(data.get("amount") or 0)
 
         if not uid:
             raise HTTPException(status_code=400, detail="Missing uid")
         if not email:
             raise HTTPException(status_code=400, detail="Missing email")
+        if currency not in SUPPORTED_PAYMENT_CURRENCIES:
+            raise HTTPException(status_code=400, detail="Unsupported currency")
         if credits <= 0:
             raise HTTPException(status_code=400, detail="Credits must be greater than 0")
-        if amount_major <= 0:
-            raise HTTPException(status_code=400, detail="Amount must be greater than 0")
-        if currency not in {"KES", "USD"}:
-            raise HTTPException(status_code=400, detail="Unsupported currency")
+
+        # Server computes the real amount — never trust frontend amount
+        amount_major = compute_amount_major(currency, credits)
+
+        # Optional but recommended minimum for USD
+        if currency == "USD" and amount_major < 2.0:
+            raise HTTPException(status_code=400, detail="Minimum USD payment is $2.00")
 
         amount_minor = amount_to_minor(currency, amount_major)
         reference = build_reference(uid)
@@ -1638,6 +1674,7 @@ async def initialize_payment(req: Request):
                 "uid": uid,
                 "credits": credits,
                 "amountMajor": amount_major,
+                "amountMinor": amount_minor,
                 "currency": currency,
             },
         }
@@ -1662,15 +1699,19 @@ async def initialize_payment(req: Request):
             "reference": reference,
             "access_code": paystack_resp["data"]["access_code"],
             "authorization_url": paystack_resp["data"]["authorization_url"],
+            "currency": currency,
+            "credits": credits,
+            "amountMajor": amount_major,
         }
 
     except HTTPException:
         raise
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid numeric value in request")
     except Exception as e:
         logger.exception("Payment initialization failed")
         raise HTTPException(status_code=500, detail=str(e))
-    
-    
+
 
 @app.get("/api/payments/verify/{reference}")
 async def verify_payment(reference: str):
@@ -1696,7 +1737,7 @@ async def verify_payment(reference: str):
         data = paystack_resp.get("data") or {}
         payment_status = (data.get("status") or "").strip().lower()
 
-        # Don't treat in-progress states as hard errors
+        # Do not hard-fail for pending/abandoned/etc
         if payment_status != "success":
             return {
                 "ok": False,
@@ -1706,26 +1747,43 @@ async def verify_payment(reference: str):
             }
 
         metadata = data.get("metadata") or {}
+
         uid = (metadata.get("uid") or "").strip()
         credits_added = int(metadata.get("credits") or 0)
-        currency = (data.get("currency") or metadata.get("currency") or "KES").upper()
-        amount_minor = int(data.get("amount") or 0)
-        amount_major = amount_minor / 100.0
-
-        customer = data.get("customer") or {}
-        email = (customer.get("email") or "").strip()
+        currency = (data.get("currency") or metadata.get("currency") or "KES").strip().upper()
 
         if not uid:
             raise HTTPException(status_code=400, detail="Missing uid in payment metadata")
         if credits_added <= 0:
             raise HTTPException(status_code=400, detail="Missing credits in payment metadata")
+        if currency not in SUPPORTED_PAYMENT_CURRENCIES:
+            raise HTTPException(status_code=400, detail="Unsupported currency in payment metadata")
+
+        # Amount Paystack says was paid
+        paid_amount_minor = int(data.get("amount") or 0)
+
+        # Amount we expect based on our own pricing rules
+        expected_amount_major = compute_amount_major(currency, credits_added)
+        expected_amount_minor = amount_to_minor(currency, expected_amount_major)
+
+        if paid_amount_minor != expected_amount_minor:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Amount mismatch during verification. "
+                    f"Expected {expected_amount_minor}, got {paid_amount_minor}"
+                )
+            )
+
+        customer = data.get("customer") or {}
+        email = (customer.get("email") or "").strip()
 
         result = process_successful_payment(
             uid=uid,
             email=email,
             reference=reference,
             currency=currency,
-            amount_major=amount_major,
+            amount_major=expected_amount_major,
             credits_added=credits_added,
             source="verify_endpoint",
             paystack_payload=data,
@@ -1735,6 +1793,8 @@ async def verify_payment(reference: str):
             "ok": True,
             "reference": reference,
             "status": "success",
+            "currency": currency,
+            "amountMajor": expected_amount_major,
             "creditsAdded": credits_added,
             "alreadyProcessed": result.get("already_processed", False),
             "message": "Payment verified successfully",
@@ -1742,6 +1802,8 @@ async def verify_payment(reference: str):
 
     except HTTPException:
         raise
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid numeric value during verification")
     except Exception as e:
         logger.exception("Payment verification failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1855,5 +1917,5 @@ if __name__ == "__main__":
     import uvicorn
 
     # 🚫 no reload=True in production / testing with file writes
-    uvicorn.run("fastapi_gpt5_backend:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("fastapi_gpt5_backend:app", host="0.0.0.0", port=8001, reload=False)
 

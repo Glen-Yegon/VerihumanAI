@@ -6,7 +6,7 @@ const auth = getAuth(app);
 const API_BASE =
   window.location.hostname.includes("localhost") ||
   window.location.hostname.includes("127.0.0.1")
-    ? "http://127.0.0.1:8000"
+    ? "http://127.0.0.1:8001"
     : "https://verihumanai.onrender.com";
 
 function showPaymentSuccessModal(message = "Payment successful. Your credits have been updated. You can view them on your profile page.") {
@@ -33,19 +33,18 @@ function showPaymentSuccessModal(message = "Payment successful. Your credits hav
   }, 4500);
 }
 
-async function initializeBackendPayment({ uid, email, currency, credits, amount }) {
+async function initializeBackendPayment({ uid, email, currency, credits}) {
   const res = await fetch(`${API_BASE}/api/payments/initialize`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      uid,
-      email,
-      currency,
-      credits,
-      amount,
-    }),
+body: JSON.stringify({
+  uid,
+  email,
+  currency,
+  credits,
+}),
   });
 
   const data = await res.json();
@@ -267,6 +266,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const credits = Math.floor(clampToZero(parseNumber(creditsInput.value)));
       const amount = credits * rate;
 
+      if (c === "USD" && amount < 1) {
+  alert("Minimum USD payment is $1.00.");
+  return;
+}
+
       if (!credits || credits <= 0) {
         alert("Please enter a valid credit amount.");
         return;
@@ -280,13 +284,12 @@ document.addEventListener("DOMContentLoaded", () => {
       payBtn.disabled = true;
       payBtn.textContent = "Processing...";
 
-      const init = await initializeBackendPayment({
-        uid: user.uid,
-        email: user.email,
-        currency: c,
-        credits,
-        amount,
-      });
+const init = await initializeBackendPayment({
+  uid: user.uid,
+  email: user.email,
+  currency: c,
+  credits,
+});
 
       if (typeof PaystackPop === "undefined") {
         throw new Error("Paystack SDK failed to load. Please refresh the page.");

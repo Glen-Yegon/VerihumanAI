@@ -20,7 +20,7 @@ import {
 const API_BASE =
   window.location.hostname.includes("localhost") ||
   window.location.hostname.includes("127.0.0.1")
-    ? "http://127.0.0.1:8000"
+    ? "http://127.0.0.1:8001"
     : "https://verihumanai.onrender.com";
     
 // Check if user is logged in
