@@ -40,11 +40,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // ✅ Check if the bubble has already been shown in this session
     if (sessionStorage.getItem("aiWelcomeShown")) return;
 
-    const messages = [
-        "Welcome to VeriHuman : Bridging Intelligence and Innovation.",
-        "Experience the future of human–AI interaction, tailored for your needs.",
-        "Prompt the AI to unleash creativity 🚀"
-    ];
+const messages = [
+    "Welcome to VeriHuman.",
+    "VeriHuman lets you chat with AI, detect AI-generated content, and humanize text.",
+    "Sign in to save conversations, manage credits, and securely access personalized features."
+];
 
     function shuffleText(target, text, delay = 35, callback) {
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";

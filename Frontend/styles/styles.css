@@ -566,7 +566,7 @@ html, body {
     left: 10%;
     max-width: 300px;
     font-family: 'Exo 2', sans-serif;
-    z-index: 10;
+    z-index: 10000 !important;
 }
 
 .ai-chat-bubble {
