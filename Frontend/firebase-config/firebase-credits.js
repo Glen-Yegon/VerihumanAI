@@ -22,7 +22,7 @@ export async function ensureUserCredits(uid) {
 
   const defaultData = {
     usedCredits: 0,
-    maxCredits: 20,
+    maxCredits: 10,
     lastUpdated: serverTimestamp(),
   };
 
@@ -39,7 +39,7 @@ export async function ensureUserCredits(uid) {
     }
 
     if (typeof data.maxCredits !== "number") {
-      updateObj.maxCredits = 20;
+      updateObj.maxCredits = 10;
       needsUpdate = true;
     }
 
