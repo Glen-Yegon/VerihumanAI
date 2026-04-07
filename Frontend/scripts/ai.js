@@ -1,4 +1,4 @@
-import { app } from "../firebase-config/firebase.js";
+import { app } from "../firebase-config/firebase.min.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
@@ -8,13 +8,13 @@ import {
   saveFullChatSession,
   resetCurrentChatDoc,     // ✅ import real one
   setCurrentChatDocId,     // ✅ optional (only if you want sync)
-} from "../firebase-config/firebase-history.js";
+} from "../firebase-config/firebase-history.min.js";
 import {
   ensureUserCredits,
   canUseCredits,
   consumeCredit,
   getCreditInfo
-} from "../firebase-config/firebase-credits.js";
+} from "../firebase-config/firebase-credits.min.js";
 
 // ✅ OPTIONAL (recommended): auto-switch between local + render without breaking anything
 const API_BASE =

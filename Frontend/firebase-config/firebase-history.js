@@ -1,4 +1,4 @@
-import { app } from "./firebase.js";
+import { app } from "./firebase.min.js";
 import {
   getFirestore,
   doc,

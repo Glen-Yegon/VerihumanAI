@@ -3,7 +3,7 @@ import {
   getChatById,
   deleteChatHistory,
   setCurrentChatDocId,
-} from "../firebase-config/firebase-history.js";
+} from "../firebase-config/firebase-history.min.js";
 
 
 window.addEventListener("DOMContentLoaded", () => {
