@@ -596,7 +596,7 @@ function showLoginPromptBubble() {
   scrollToBottom();
 }
 
- function addCopyButton(bubbleEl) {
+function addCopyButton(bubbleEl) {
   // Skip if bubble already has a copy button
   if (bubbleEl.querySelector(".copy-btn")) return;
 
@@ -612,6 +612,7 @@ function showLoginPromptBubble() {
     </svg>
   `;
 
+  // Button styling
   btn.style.marginLeft = "8px";
   btn.style.background = "transparent";
   btn.style.border = "none";
@@ -619,6 +620,7 @@ function showLoginPromptBubble() {
   btn.style.padding = "0";
   btn.style.display = "inline-flex";
   btn.style.alignItems = "center";
+  btn.style.position = "relative"; // allow tooltip positioning
 
   // Copy text on click
   btn.addEventListener("click", () => {
@@ -626,8 +628,35 @@ function showLoginPromptBubble() {
     if (!textToCopy) return;
 
     navigator.clipboard.writeText(textToCopy).then(() => {
-      btn.title = "Copied to clipboard";
-      setTimeout(() => (btn.title = "Copy text"), 1500);
+      // Create tooltip element
+      const tooltip = document.createElement("span");
+      tooltip.textContent = "Copied!";
+      tooltip.style.position = "absolute";
+      tooltip.style.top = "-25px";
+      tooltip.style.left = "50%";
+      tooltip.style.transform = "translateX(-50%)";
+      tooltip.style.background = "#333";
+      tooltip.style.color = "#fff";
+      tooltip.style.padding = "2px 6px";
+      tooltip.style.borderRadius = "4px";
+      tooltip.style.fontSize = "12px";
+      tooltip.style.whiteSpace = "nowrap";
+      tooltip.style.pointerEvents = "none";
+      tooltip.style.opacity = "0";
+      tooltip.style.transition = "opacity 0.2s";
+
+      btn.appendChild(tooltip);
+
+      // Show tooltip
+      requestAnimationFrame(() => {
+        tooltip.style.opacity = "1";
+      });
+
+      // Remove tooltip after 1.5 seconds
+      setTimeout(() => {
+        tooltip.style.opacity = "0";
+        setTimeout(() => tooltip.remove(), 200);
+      }, 1500);
     });
   });
 
