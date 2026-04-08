@@ -41,8 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sessionStorage.getItem("aiWelcomeShown")) return;
 
 const messages = [
-    "Welcome to VeriHuman.",
-    "VeriHuman lets you chat with AI, detect AI-generated content, and humanize text.",
+    "Welcome to VeriHuman AI.",
+    "VeriHuman AI lets you chat with AI, detect AI-generated content, and humanize text.",
     "Sign in to save conversations, manage credits, and securely access personalized features."
 ];
 

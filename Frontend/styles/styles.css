@@ -612,7 +612,7 @@ html, body {
 }
 .chat-container {
   position: relative;
-  max-width: 50vw;
+  max-width: 65vw;
   max-height: 80vh;
   overflow-y: auto;
   display: flex;
@@ -621,8 +621,22 @@ html, body {
   padding: 10px;
   scrollbar-width: thin;
   scrollbar-color: #8ab6f9 transparent;
-  overscroll-behavior: contain; /* Prevents body scroll interference */
+  overscroll-behavior: contain;
   background: transparent;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .chat-container {
+    max-height: 75vh;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .chat-container {
+    max-height: 80vh;
+  }
 }
 
 /* Extra bottom padding so scrolling has breathing room */
@@ -1838,7 +1852,7 @@ html, body {
 .auth-modal{
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 99999 !important;
   display: grid;
   place-items: center;
   padding: 16px; /* mobile safety spacing */

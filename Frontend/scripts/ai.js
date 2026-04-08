@@ -49,9 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatForm = document.getElementById("chatForm");
 
   // 🔥 Immediately check login when page loads
-  if (!isUserLoggedIn()) {
-    showAuthModal();
-  }
+if (!isUserLoggedIn()) {
+  showLoginPromptBubble();
+}
 
   // Close modal
   if (closeBtn) {
@@ -533,6 +533,67 @@ function createBubble(message = "", sender = "ai", options = {}, attachments = [
   addCopyButton(bubble);
 
   return bubble;
+}
+
+function showLoginPromptBubble() {
+  // Prevent duplicate prompt
+  if (document.querySelector(".login-prompt-bubble")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "chat-wrapper ai login-prompt-bubble";
+
+  // Style: push the bubble below modal
+  wrapper.style.position = "relative"; // relative inside chat container
+  wrapper.style.marginTop = "20px"; // gives space below modal
+  wrapper.style.zIndex = "1"; // make sure it's under the modal
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.style.backgroundImage = "url('Images/veri-logo.png')";
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble ai";
+
+  // Main message
+  const mainText = document.createElement("div");
+  mainText.textContent = "Please sign up or log in to use VeriHuman AI.";
+  mainText.style.marginBottom = "6px";
+
+  // Short explanation
+  const subText = document.createElement("div");
+  subText.textContent = "VeriHuman AI helps you chat with AI, humanize text, and detect AI-generated content quickly and securely.";
+  subText.style.fontSize = "0.85em";
+  subText.style.color = "#555";
+  subText.style.marginBottom = "10px";
+
+  // Button
+  const btn = document.createElement("button");
+  btn.textContent = "Continue"; // neutral for all users
+  btn.style.padding = "8px 14px";
+  btn.style.borderRadius = "8px";
+  btn.style.border = "none";
+  btn.style.cursor = "pointer";
+  btn.style.fontWeight = "600";
+  btn.style.background = "#8ab6f9";
+  btn.style.color = "#00246b";
+
+  // Click behavior: open modal, prompt stays
+  btn.addEventListener("click", () => {
+    showAuthModal();
+    // optionally scroll to ensure bubble is visible
+    wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+  });
+
+  bubble.appendChild(mainText);
+  bubble.appendChild(subText);
+  bubble.appendChild(btn);
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(bubble);
+
+  // Append to chat container
+  chatContainer.appendChild(wrapper);
+
+  scrollToBottom();
 }
 
  function addCopyButton(bubbleEl) {
