@@ -23,13 +23,36 @@ const API_BASE =
     ? "http://127.0.0.1:8001"
     : "https://verihumanai.onrender.com";
     
-// Check if user is logged in
+// Check if user is logged in (Hybrid: session first, then persistent login)
 function isUserLoggedIn() {
-  return (
-    sessionStorage.getItem("userUID") &&
-    sessionStorage.getItem("userEmail")
-  );
+  const uid =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
+
+  const email =
+    sessionStorage.getItem("userEmail") ||
+    localStorage.getItem("userEmail");
+
+  // Sync session from localStorage if user opened fresh tab
+  if (uid && email && !sessionStorage.getItem("userUID")) {
+    sessionStorage.setItem("userUID", uid);
+    sessionStorage.setItem("userEmail", email);
+  }
+
+  return !!(uid && email);
 }
+
+function restoreSession() {
+  const uid = localStorage.getItem("userUID");
+  const email = localStorage.getItem("userEmail");
+
+  if (uid && email) {
+    sessionStorage.setItem("userUID", uid);
+    sessionStorage.setItem("userEmail", email);
+  }
+}
+
+restoreSession();
 
 
 // Show / Hide modal
@@ -191,13 +214,23 @@ window.addEventListener("click", (e) => {
   }
 });
 
+
+
 // Load user data
 async function loadUserData() {
-  const userUID = sessionStorage.getItem("userUID");
+  const userUID =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
+
   if (!userUID) {
     userEmailEl.innerHTML = `<a href="sign.html">Sign Up / Login</a>`;
     logoutBtn.style.display = "none";
     return;
+  }
+
+  // sync session (important)
+  if (!sessionStorage.getItem("userUID")) {
+    sessionStorage.setItem("userUID", userUID);
   }
 
   try {
@@ -206,18 +239,19 @@ async function loadUserData() {
 
     let profilePhotoURL = "default-avatar.png";
 
-    // Primary source: Firestore
     if (docSnap.exists()) {
       const data = docSnap.data() || {};
-      if (data.photoURL && data.photoURL.trim()) {
+      if (data.photoURL?.trim()) {
         profilePhotoURL = data.photoURL.trim();
       }
     }
 
-    // Backup only if Firestore has no photo
     if (profilePhotoURL === "default-avatar.png") {
-      const backupPhoto = sessionStorage.getItem("profilePhoto");
-      if (backupPhoto && backupPhoto.trim()) {
+      const backupPhoto =
+        sessionStorage.getItem("profilePhoto") ||
+        localStorage.getItem("profilePhoto");
+
+      if (backupPhoto?.trim()) {
         profilePhotoURL = backupPhoto.trim();
       }
     }
@@ -238,7 +272,11 @@ async function loadUserData() {
   } catch (err) {
     console.error("Error fetching user data:", err);
 
-    const backupPhoto = sessionStorage.getItem("profilePhoto") || "default-avatar.png";
+    const backupPhoto =
+      sessionStorage.getItem("profilePhoto") ||
+      localStorage.getItem("profilePhoto") ||
+      "default-avatar.png";
+
     [modalAvatar, document.getElementById("user-avatar")].forEach(el => {
       if (!el) return;
       el.style.backgroundImage = `url('${backupPhoto}')`;
@@ -253,10 +291,14 @@ async function loadUserData() {
 
 // Logout
 logoutBtn.addEventListener("click", () => {
-  signOut(auth).then(() => {
-    sessionStorage.clear();
-    window.location.href = "sign.html";
-  }).catch(err => console.error("Error signing out:", err));
+  signOut(auth)
+    .then(() => {
+      sessionStorage.clear();
+      localStorage.removeItem("userUID");
+      localStorage.removeItem("userEmail");
+      window.location.href = "sign.html";
+    })
+    .catch(err => console.error("Error signing out:", err));
 });
 
 loadUserData();
@@ -427,7 +469,10 @@ if (selectedMode !== "detect") {
   await typeText(bubble, modeText[selectedMode]);
 
 // 🔹 Save mode-switch as AI message in history
-const userUID = sessionStorage.getItem("userUID");
+const userUID =
+  sessionStorage.getItem("userUID") ||
+  localStorage.getItem("userUID");
+
 if (userUID && window.currentChatId) {
   const savedId = await saveChatToHistory(
     userUID,
@@ -781,7 +826,10 @@ function closeCreditsModal() {
 // ------------------------
 
 async function creditGuard() {
-  const uid = sessionStorage.getItem("userUID");
+  const uid =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
+
   if (!uid) return true;
 
   const info = await getCreditInfo(uid);
@@ -931,8 +979,11 @@ res = await fetch(`${API_BASE}/api/chat`, {
 // CHAT MODE
 // ------------------------
 async function handleSend() {
-  const userUID = sessionStorage.getItem("userUID");
-  if (!userUID) return;
+const userUID =
+  sessionStorage.getItem("userUID") ||
+  localStorage.getItem("userUID");
+
+if (!userUID) return;
 
   if (!(await creditGuard())) return;
 
@@ -1024,8 +1075,11 @@ window.handleSend = handleSend;
 // DETECTION MODE (CLEAN UI)
 // ------------------------
 runDetectionBtn.addEventListener("click", async () => {
-  const userUID = sessionStorage.getItem("userUID");
-  if (!userUID) return;
+const userUID =
+  sessionStorage.getItem("userUID") ||
+  localStorage.getItem("userUID");
+
+if (!userUID) return;
 
   if (!(await creditGuard())) return;
 
@@ -1378,8 +1432,11 @@ runDetectionBtn.addEventListener("click", async () => {
 // HUMANIZER MODE
 // ------------------------
 runHumanizerBtn.addEventListener("click", async () => {
-  const userUID = sessionStorage.getItem("userUID");
-  if (!userUID) return;
+const userUID =
+  sessionStorage.getItem("userUID") ||
+  localStorage.getItem("userUID");
+
+if (!userUID) return;
 
   if (!(await creditGuard())) return;
 
@@ -1473,8 +1530,11 @@ isNewConversation = false;
 // Load previous chat on start
 // ------------------------
 async function init() {
-  const userUID = sessionStorage.getItem("userUID");
-  if (!userUID) return;
+const userUID =
+  sessionStorage.getItem("userUID") ||
+  localStorage.getItem("userUID");
+
+if (!userUID) return;
 
   try {
     await ensureUserCredits(userUID);
@@ -1543,7 +1603,9 @@ else sessionStorage.removeItem("currentChatId");
 // Start a new chat
 // ------------------------
 async function startNewChat() {
-  const userUID = sessionStorage.getItem("userUID");
+const userUID =
+  sessionStorage.getItem("userUID") ||
+  localStorage.getItem("userUID");
 
   // ✅ Save session snapshot (optional feature you already had)
   if (userUID && Array.isArray(currentChatMessages) && currentChatMessages.length > 0) {

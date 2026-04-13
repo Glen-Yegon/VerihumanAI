@@ -47,19 +47,22 @@ async function handleGoogleSignIn() {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // Save/update user in "users" collection
-    await setDoc(doc(db, "users", user.uid), {
-      uid: user.uid,
-      email: user.email,
-      name: user.displayName || "Anonymous User",
-      photoURL: user.photoURL || "default-avatar.png",
-      createdAt: new Date().toISOString(),
-      authProvider: "google"
-    }, { merge: true });
+await setDoc(doc(db, "users", user.uid), {
+  uid: user.uid,
+  email: user.email,
+  name: user.displayName || "Anonymous User",
+  photoURL: user.photoURL || "default-avatar.png",
+  createdAt: new Date().toISOString(),
+  authProvider: "google"
+}, { merge: true });
 
-    // Store user locally
-    sessionStorage.setItem("userUID", user.uid);
-    sessionStorage.setItem("userEmail", user.email);
+// SESSION
+sessionStorage.setItem("userUID", user.uid);
+sessionStorage.setItem("userEmail", user.email);
+
+// HYBRID PERSISTENCE
+localStorage.setItem("userUID", user.uid);
+localStorage.setItem("userEmail", user.email);
 
     // Show custom modal instead of alert
     showGoogleSignInModal(

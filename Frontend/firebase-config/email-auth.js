@@ -41,19 +41,24 @@ document.getElementById("auth-form").addEventListener("submit", async (e) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      await setDoc(doc(db, "signup", user.uid), {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName || "Anonymous User",
-        photoURL: user.photoURL || "default-avatar.png",
-        nationality: nationality,
-        createdAt: new Date().toISOString(),
-        authProvider: "email"
-      });
+await setDoc(doc(db, "users", user.uid), {
+  uid: user.uid,
+  email: user.email,
+  name: user.displayName || "Anonymous User",
+  photoURL: user.photoURL || "default-avatar.png",
+  nationality: nationality,
+  createdAt: new Date().toISOString(),
+  authProvider: "email"
+});
 
-      // Store locally
-      sessionStorage.setItem("userUID", user.uid);
-      sessionStorage.setItem("userEmail", user.email);
+// SESSION (current tab)
+sessionStorage.setItem("userUID", user.uid);
+sessionStorage.setItem("userEmail", user.email);
+
+// PERSISTENT LOGIN (hybrid layer)
+localStorage.setItem("userUID", user.uid);
+localStorage.setItem("userEmail", user.email);
+
       localStorage.setItem("userNationality", nationality);
 
       showPopup("🤖 Signup successful! Welcome to VeriHuman.", 4000, "index.html");
