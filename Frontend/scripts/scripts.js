@@ -3,7 +3,7 @@ import {
   getChatById,
   deleteChatHistory,
   setCurrentChatDocId,
-} from "../firebase-config/firebase-history.min.js";
+} from "../firebase-config/firebase-history.js";
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -196,6 +196,229 @@ async function loadChatHistory() {
   });
 }
 
+function renderDetectBubbleFromHistory(rawContent, chatContainer) {
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("chat-wrapper", "ai");
+
+  const avatarEl = document.createElement("div");
+  avatarEl.className = "avatar";
+  avatarEl.style.backgroundImage = "url('Images/veri-logo.png')";
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("chat-bubble", "ai", "detect-result");
+
+  let parsed = null;
+  try { parsed = JSON.parse(rawContent); } catch (e) {}
+
+  const rd = parsed?.renderData;
+
+  if (!rd) {
+    bubble.textContent = rawContent;
+    wrapper.appendChild(avatarEl);
+    wrapper.appendChild(bubble);
+    chatContainer.appendChild(wrapper);
+    return;
+  }
+
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+  const pct = (n) => `${clamp(Number(n || 0), 0, 100).toFixed(1)}%`;
+
+  function labelToFriendly(c) {
+    if (c === "AI_ONLY") return "AI-written";
+    if (c === "HUMAN_ONLY") return "Human-written";
+    if (c === "MIXED") return "Mixed / Uncertain";
+    return "Uncertain";
+  }
+
+  function confidenceLabel(aiPct, words) {
+    if (words < 100) return "Low confidence (text is short)";
+    if (aiPct >= 90 || aiPct <= 10) return "High confidence";
+    if (aiPct >= 75 || aiPct <= 25) return "Medium confidence";
+    return "Low–Medium confidence";
+  }
+
+  function explainSignals(features = {}) {
+    const ttr = Number(features.ttr ?? 0);
+    const rep = Number(features.rep_bigram_ratio ?? 0);
+    const burst = Number(features.burstiness ?? 0);
+    const bullets = [];
+    if (ttr && ttr < 0.38) bullets.push("Vocabulary variety looks low (more repetitive wording).");
+    else if (ttr) bullets.push("Vocabulary variety looks normal.");
+    if (rep > 0.1) bullets.push("Repeated phrasing patterns show up across sentences.");
+    else bullets.push("Not much repeated phrasing detected.");
+    if (burst && burst < 0.2) bullets.push("Sentence lengths are very uniform (often AI-like).");
+    else if (burst) bullets.push("Sentence length variation looks natural.");
+    return bullets.slice(0, 4);
+  }
+
+  const {
+    classification, confidenceScore, aiPct, humanPct,
+    words, totalSentences, highlightedCount, engine,
+    features = {}, sentences = []
+  } = rd;
+
+  const container = document.createElement("div");
+  container.style.cssText = "display:flex;flex-direction:column;gap:12px;font-family:'Exo 2',sans-serif;width:100%";
+
+  // Header
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px";
+  const title = document.createElement("div");
+  title.textContent = "AI Detection Result";
+  title.style.cssText = "font-weight:800;font-size:1.05rem";
+  header.appendChild(title);
+  if (words < 100) {
+    const warn = document.createElement("div");
+    warn.textContent = "⚠️ Short text (under 100 words). The result may be less accurate.";
+    warn.style.cssText = "font-size:0.9rem;opacity:0.9;text-align:center";
+    header.appendChild(warn);
+  }
+  container.appendChild(header);
+
+  // Score
+  const scoreWrap = document.createElement("div");
+  scoreWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px";
+  const scoreEl = document.createElement("div");
+  scoreEl.textContent = `AI likelihood: ${pct(aiPct)}`;
+  scoreEl.style.cssText = "font-size:1.35rem;font-weight:900;color:#8ab6f9";
+  const classEl = document.createElement("div");
+  classEl.textContent = `Overall: ${labelToFriendly(classification)} • ${confidenceLabel(aiPct, words)}`;
+  classEl.style.cssText = "font-weight:600;text-align:center";
+  const metaEl = document.createElement("div");
+  metaEl.textContent = `Engine: ${engine} • ${words} words • ${totalSentences} sentences`;
+  metaEl.style.cssText = "font-size:0.85rem;opacity:0.85;text-align:center";
+  scoreWrap.append(scoreEl, classEl, metaEl);
+  container.appendChild(scoreWrap);
+
+  // Prob cards
+  const probsWrap = document.createElement("div");
+  probsWrap.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px";
+  function probCard(label, value) {
+    const box = document.createElement("div");
+    box.style.cssText = "border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px;text-align:center";
+    const l = document.createElement("div");
+    l.textContent = label;
+    l.style.cssText = "font-size:0.85rem;opacity:0.85";
+    const v = document.createElement("div");
+    v.textContent = pct(value);
+    v.style.cssText = "font-size:1.05rem;font-weight:800";
+    box.append(l, v);
+    return box;
+  }
+  probsWrap.append(probCard("AI", aiPct), probCard("Human", humanPct));
+  container.appendChild(probsWrap);
+
+  // Why section
+  const whyWrap = document.createElement("div");
+  whyWrap.style.cssText = "border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:12px";
+  const whyTitle = document.createElement("div");
+  whyTitle.textContent = "Why this score?";
+  whyTitle.style.cssText = "font-weight:800;margin-bottom:8px";
+  whyWrap.appendChild(whyTitle);
+  const ul = document.createElement("ul");
+  ul.style.cssText = "margin:0;padding-left:18px;line-height:1.35";
+  explainSignals(features).forEach(b => {
+    const li = document.createElement("li");
+    li.textContent = b;
+    ul.appendChild(li);
+  });
+  whyWrap.appendChild(ul);
+  container.appendChild(whyWrap);
+
+  // Top sentences
+  const top = sentences
+    .filter(s => s && typeof s.sentence === "string")
+    .map(s => ({ text: s.sentence.trim(), ai: Number(s.generated_prob ?? 0) }))
+    .sort((a, b) => b.ai - a.ai)
+    .slice(0, 5);
+
+  if (top.length) {
+    const topWrap = document.createElement("div");
+    topWrap.style.cssText = "border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:12px";
+    const topTitle = document.createElement("div");
+    topTitle.textContent = "Top sentences driving the score";
+    topTitle.style.cssText = "font-weight:800;margin-bottom:10px";
+    topWrap.appendChild(topTitle);
+    top.forEach(s => {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.10)";
+      const badge = document.createElement("div");
+      badge.textContent = `Sentence AI: ${pct(clamp(s.ai * 100, 0, 100))}`;
+      badge.style.cssText = "font-size:0.82rem;opacity:0.9";
+      const sent = document.createElement("div");
+      sent.textContent = s.text;
+      sent.style.cssText = "margin-top:6px;font-size:0.95rem;line-height:1.35";
+      row.append(badge, sent);
+      topWrap.appendChild(row);
+    });
+    container.appendChild(topWrap);
+  }
+
+  // Note
+  const guide = document.createElement("div");
+  guide.style.cssText = "border:1px dashed rgba(255,255,255,0.18);border-radius:12px;padding:12px;font-size:0.9rem;opacity:0.95";
+  guide.innerHTML = `<strong>Note:</strong> AI detection is not perfect. Editing, templates, and non-native English can change results.<br><br><strong>Tip:</strong> For a more reliable scan, use a longer excerpt (150–300+ words).`;
+  container.appendChild(guide);
+
+  // Footer
+  const footer = document.createElement("div");
+  footer.style.cssText = "font-size:0.85rem;opacity:0.85;text-align:center";
+  footer.innerHTML = `• Sentences flagged as AI-like: ${highlightedCount}`;
+  container.appendChild(footer);
+
+  bubble.appendChild(container);
+  wrapper.appendChild(avatarEl);
+  wrapper.appendChild(bubble);
+  chatContainer.appendChild(wrapper);
+}
+
+
+function renderHumanizeBubbleFromHistory(rawContent, chatContainer) {
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("chat-wrapper", "ai");
+
+  const avatarEl = document.createElement("div");
+  avatarEl.className = "avatar";
+  avatarEl.style.backgroundImage = "url('Images/veri-logo.png')";
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("chat-bubble", "ai", "humanizer-ai");
+
+  function escapeHTML(str = "") {
+    return str
+      .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function simpleRender(text) {
+    const parts = String(text).split(/```/g);
+    let html = `<div class="ai-rich">`;
+    parts.forEach((chunk, i) => {
+      if (i % 2 === 0) {
+        const safe = escapeHTML(chunk).trim();
+        if (safe) {
+          safe.split(/\n\s*\n/).forEach(p => {
+            html += `<p class="ai-text">${p.replace(/\n/g, "<br>").trim()}</p>`;
+          });
+        }
+      } else {
+        let code = chunk, lang = "";
+        const nl = code.indexOf("\n");
+        if (nl !== -1) { lang = code.slice(0, nl).trim(); code = code.slice(nl + 1); }
+        html += `<div class="ai-codeblock">${lang ? `<div class="ai-code-lang">${escapeHTML(lang)}</div>` : ""}<pre><code>${escapeHTML(code.trim())}</code></pre></div>`;
+      }
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  bubble.innerHTML = simpleRender(rawContent);
+  wrapper.appendChild(avatarEl);
+  wrapper.appendChild(bubble);
+  chatContainer.appendChild(wrapper);
+}
+
 // if using module imports:
 // import { getChatById } from './firebase-history.js';
 // import { createBubble } from './ui.js';
@@ -257,31 +480,32 @@ async function loadChatIntoContainer(chatId) {
   }
 
   // Render messages (with mode styling if present)
+// Render messages (with mode styling if present)
   (chatData.messages || []).forEach((msg) => {
     const sender = msg.role === "user" ? "user" : "ai";
+    const type = msg.metadata?.type || msg.mode || "chat";
 
-    let bubble;
-    if (typeof window.createBubble === "function") {
-      bubble = window.createBubble(msg.content, sender);
-    } else if (typeof createBubble === "function") {
-      bubble = createBubble(msg.content, sender);
+    if (sender === "ai" && type === "detect") {
+      renderDetectBubbleFromHistory(msg.content, chatContainer);
+    } else if (sender === "ai" && type === "humanize") {
+      renderHumanizeBubbleFromHistory(msg.content, chatContainer);
     } else {
-      const p = document.createElement("div");
-      p.textContent = `${msg.role}: ${msg.content}`;
-      chatContainer.appendChild(p);
-      bubble = null;
+      let bubble;
+      if (typeof window.createBubble === "function") {
+        bubble = window.createBubble(msg.content, sender);
+      } else if (typeof createBubble === "function") {
+        bubble = createBubble(msg.content, sender);
+      } else {
+        const p = document.createElement("div");
+        p.textContent = `${msg.role}: ${msg.content}`;
+        chatContainer.appendChild(p);
+        bubble = null;
+      }
+      if (bubble && msg.metadata?.systemMessage) {
+        bubble.classList.add("system-message");
+      }
     }
 
-    // ✅ Apply styling based on mode (if your getChatById returns mode/metadata)
-    // msg.mode: "chat" | "detect" | "humanize"
-    // msg.metadata.systemMessage: true
-    if (bubble) {
-      if (msg.metadata?.systemMessage) bubble.classList.add("system-message");
-      if (msg.mode === "detect") bubble.classList.add("detect-result");
-      if (msg.mode === "humanize") bubble.classList.add("humanizer-ai");
-    }
-
-    // keep local copy
     window.currentChatMessages.push({
       sender,
       text: msg.content,

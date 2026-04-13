@@ -100,6 +100,29 @@ if (!isUserLoggedIn()) {
 
 });
 
+// Stop controller for cancelling AI requests
+let currentAbortController = null;
+
+// Stop button (reuse sendBtn slot)
+const stopBtn = document.createElement("button");
+stopBtn.id = "stopBtn";
+stopBtn.type = "button";
+stopBtn.title = "Stop response";
+stopBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>`;
+stopBtn.style.display = "none";
+// Insert stop button next to sendBtn — do this after DOM loads
+document.addEventListener("DOMContentLoaded", () => {
+  const sb = document.getElementById("sendBtn");
+  if (sb && sb.parentNode) {
+    sb.parentNode.insertBefore(stopBtn, sb.nextSibling);
+  }
+  stopBtn.addEventListener("click", () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+  });
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("auth-modal");
   const backdrop = modal?.querySelector(".auth-modal__backdrop");
@@ -510,8 +533,29 @@ function getCurrentMode() {
   return currentMode;
 }
 
-  function scrollToBottom() {
+function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  function scrollAsContentGrows(element) {
+    const observer = new ResizeObserver(() => {
+      const distFromBottom =
+        chatContainer.scrollHeight -
+        chatContainer.scrollTop -
+        chatContainer.clientHeight;
+
+      if (distFromBottom < 120) {
+        chatContainer.scrollTo({
+          top: chatContainer.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    });
+
+    observer.observe(element);
+
+    // Safety cleanup after 10 seconds
+    setTimeout(() => observer.disconnect(), 10000);
   }
 
 function createBubble(message = "", sender = "ai", options = {}, attachments = []) {
@@ -725,24 +769,31 @@ function renderAIMessageToHTML(raw = "") {
   // Split into segments: code blocks + normal text
   const parts = text.split(/```/g);
 
-  // If no code fences, just paragraphs
-  if (parts.length === 1) {
-    return `<div class="ai-text">${escapeHTML(text).replaceAll("\n", "<br>")}</div>`;
-  }
-
   let html = `<div class="ai-rich">`;
 
   for (let i = 0; i < parts.length; i++) {
     const chunk = parts[i];
 
-    // Even index => normal text
+    // ------------------------
+    // NORMAL TEXT
+    // ------------------------
     if (i % 2 === 0) {
       const safe = escapeHTML(chunk).trim();
+
       if (safe) {
-        html += `<div class="ai-text">${safe.replaceAll("\n", "<br>")}</div>`;
+        // ✅ Split into paragraphs using double line breaks
+        const paragraphs = safe.split(/\n\s*\n/);
+
+        html += paragraphs
+          .map(p => `<p class="ai-text">${p.replace(/\n/g, "<br>").trim()}</p>`)
+          .join("");
       }
-    } else {
-      // Odd index => code block: first line might be language
+    }
+
+    // ------------------------
+    // CODE BLOCK
+    // ------------------------
+    else {
       let code = chunk;
       let lang = "";
 
@@ -929,32 +980,29 @@ async function compressImage(file, { maxWidth = 1400, quality = 0.8 } = {}) {
 }
 
 
-async function sendPromptToAPI(promptText, files = []) {
+async function sendPromptToAPI(promptText, files = [], signal = null) {
   try {
     let res;
+    const fetchOpts = signal ? { signal } : {};
 
-    // If files exist → multipart/form-data
-if (files && files.length) {
-  const form = new FormData();
-  form.append("prompt", promptText || "");
-
-  // ✅ compress only images
-  for (const f of files) {
-    const toSend = f.type.startsWith("image/") ? await compressImage(f) : f;
-    form.append("files", toSend);
-  }
-
-res = await fetch(`${API_BASE}/api/chat`, {
-    method: "POST",
-    body: form,
-  });
+    if (files && files.length) {
+      const form = new FormData();
+      form.append("prompt", promptText || "");
+      for (const f of files) {
+        const toSend = f.type.startsWith("image/") ? await compressImage(f) : f;
+        form.append("files", toSend);
+      }
+      res = await fetch(`${API_BASE}/api/chat`, {
+        method: "POST",
+        body: form,
+        ...fetchOpts,
+      });
     } else {
-      // No files → keep JSON (your old behavior)
-      const body = { prompt: promptText };
       res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ prompt: promptText }),
+        ...fetchOpts,
       });
     }
 
@@ -963,15 +1011,12 @@ res = await fetch(`${API_BASE}/api/chat`, {
       try {
         const j = await res.json();
         text = j.detail || JSON.stringify(j);
-      } catch (e) {
-        console.error("Response JSON parse failed:", e);
-      }
+      } catch (e) {}
       throw new Error(text);
     }
     return await res.json();
   } catch (err) {
-    console.error("❌ Fetch error:", err);
-    throw err;
+    throw err; // re-throw so AbortError propagates correctly
   }
 }
 
@@ -979,74 +1024,81 @@ res = await fetch(`${API_BASE}/api/chat`, {
 // CHAT MODE
 // ------------------------
 async function handleSend() {
-const userUID =
-  sessionStorage.getItem("userUID") ||
-  localStorage.getItem("userUID");
+  const userUID =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
 
-if (!userUID) return;
-
-  if (!(await creditGuard())) return;
+  if (!userUID) return;
 
   const text = chatInput.value.trim();
-  const filesToSend = (selectedFiles || []).slice(); // ✅ snapshot
+  const filesToSend = (selectedFiles || []).slice();
   const hasFiles = filesToSend.length > 0;
 
-  // ✅ allow send if either text OR files exist
   if (!text && !hasFiles) return;
 
-  // ✅ Show user bubble with BOTH text + attachments
-  const userDisplay = text || (hasFiles ? "" : "");
+  // Show user bubble and clear input IMMEDIATELY
+  const userDisplay = text || "";
   createBubble(userDisplay, "user", {}, filesToSend);
   addMessage("user", text || (hasFiles ? "[Sent attachment(s)]" : ""));
 
-  // ✅ Clear UI immediately (feels like message sent)
   chatInput.value = "";
   chatInput.style.height = "auto";
   selectedFiles = [];
   renderAttachmentsPreview();
 
+  // Show scanning bubble immediately
   const aiBubble = createBubble("", "ai", { scanning: true });
-  chatInput.disabled = true;
+  scrollAsContentGrows(aiBubble);
+
+  // ✅ Keep input enabled — only swap send ↔ stop buttons
+  sendBtn.style.display = "none";
+  stopBtn.style.display = "";
+  chatInput.focus(); // user can keep typing
+
+  // Credit check
+  const allowed = await creditGuard();
+  if (!allowed) {
+    aiBubble.remove();
+    sendBtn.style.display = "";
+    stopBtn.style.display = "none";
+    return;
+  }
+
+  // Set up abort controller for this request
+  currentAbortController = new AbortController();
+  const signal = currentAbortController.signal;
 
   try {
-    // ✅ send snapshot
-    const data = await sendPromptToAPI(text, filesToSend);
+    const data = await sendPromptToAPI(text, filesToSend, signal);
     const reply = typeof data.reply === "string" ? data.reply : "[No reply]";
 
-aiBubble.classList.remove("scanning");
+    aiBubble.classList.remove("scanning");
+    const rendered = renderAIWithDetectedMedia(reply);
+    aiBubble.innerHTML = rendered.html;
+    addCopyButton(aiBubble);
+    addMessage("ai", reply);
+    scrollToBottom();
 
-// Render text/code + detect image URLs in the reply and preview them
-const rendered = renderAIWithDetectedMedia(reply);
-aiBubble.innerHTML = rendered.html;
-
-// Add copy button after final HTML is placed
-addCopyButton(aiBubble);
-
-addMessage("ai", reply);
-
-    // ✅ Consume credit only after successful reply
     await consumeCredit(userUID);
 
-const savedId = await saveChatToHistory(
-  userUID,
-  text || (hasFiles ? "[Sent attachment(s)]" : ""),
-  reply,
-  window.isNewConversation,
-  {
-    mode: getCurrentMode(),
-    metadata: { model: "chat-model" },
-    chatId: window.currentChatId,
-  }
-);
+    const savedId = await saveChatToHistory(
+      userUID,
+      text || (hasFiles ? "[Sent attachment(s)]" : ""),
+      reply,
+      window.isNewConversation,
+      {
+        mode: getCurrentMode(),
+        metadata: { model: "chat-model" },
+        chatId: window.currentChatId,
+      }
+    );
 
-if (savedId) {
-  window.currentChatId = savedId;
-  sessionStorage.setItem("currentChatId", savedId);
-  window.isNewConversation = false;
-}
+    if (savedId) {
+      window.currentChatId = savedId;
+      sessionStorage.setItem("currentChatId", savedId);
+      window.isNewConversation = false;
+    }
 
-
-    // Optional: check if usedCredits reached max
     const creditInfo = await getCreditInfo(userUID);
     if (
       creditInfo.maxCredits !== "unlimited" &&
@@ -1057,14 +1109,22 @@ if (savedId) {
     }
 
   } catch (err) {
-    console.error("❌ Chat send error:", err);
-    aiBubble.textContent = "Sorry — something went wrong.";
-
-    // Optional UX: if send fails, you could restore attachments here if you want
-    // selectedFiles = filesToSend;
-    // renderAttachmentsPreview();
+    if (err.name === "AbortError") {
+      // User stopped the request
+      aiBubble.classList.remove("scanning");
+      aiBubble.textContent = "⏹ Response stopped.";
+      aiBubble.style.opacity = "0.6";
+    } else {
+      console.error("❌ Chat send error:", err);
+      aiBubble.classList.remove("scanning");
+      aiBubble.textContent = "Sorry — something went wrong.";
+    }
+    scrollToBottom();
   } finally {
-    chatInput.disabled = false;
+    // ✅ Always restore send button and keep input enabled
+    sendBtn.style.display = "";
+    stopBtn.style.display = "none";
+    currentAbortController = null;
     chatInput.focus();
   }
 }
@@ -1089,7 +1149,8 @@ if (!userUID) return;
   createBubble(text, "user");
   addMessage("user", text);
 
-  const aiBubble = createBubble("", "ai", { scanning: true });
+const aiBubble = createBubble("", "ai", { scanning: true });
+  scrollAsContentGrows(aiBubble);
   detectInput.value = "";
   detectInput.disabled = true;
   runDetectionBtn.disabled = true;
@@ -1388,14 +1449,31 @@ if (!userUID) return;
     // ✅ Consume credit only after AI result
     await consumeCredit(userUID);
 
-    const savedId = await saveChatToHistory(
+const savedId = await saveChatToHistory(
       userUID,
       text,
-      JSON.stringify({ classification, confidenceScore, explanation: data.explanation }),
+      JSON.stringify({
+        classification,
+        confidenceScore,
+        explanation: data.explanation,
+        renderData: {
+          type: "detect",
+          classification,
+          confidenceScore,
+          aiPct,
+          humanPct,
+          words,
+          totalSentences,
+          highlightedCount,
+          engine,
+          features,
+          sentences: sentences.slice(0, 120),
+        }
+      }),
       window.isNewConversation,
       {
         mode: "detect",
-        metadata: { classification, confidenceScore },
+        metadata: { classification, confidenceScore, type: "detect" },
         chatId: window.currentChatId,
       }
     );
@@ -1414,14 +1492,14 @@ if (!userUID) return;
       showCreditsModal();
       disableAllInputs();
     }
-  } catch (err) {
+} catch (err) {
     console.error("❌ Detection error:", err);
     aiBubble.textContent = "Detection failed. Try again.";
+    scrollToBottom();
   } finally {
     detectInput.disabled = false;
     runDetectionBtn.disabled = false;
     detectInput.focus();
-    scrollToBottom();
   }
 });
 
@@ -1481,7 +1559,7 @@ const savedId = await saveChatToHistory(
   window.isNewConversation,
   {
     mode: "humanize",
-    metadata: { model: "humanizer-model" },
+    metadata: { model: "humanizer-model", type: "humanize" },
     chatId: window.currentChatId,
   }
 );
@@ -1566,13 +1644,85 @@ else sessionStorage.removeItem("currentChatId");
 
     isNewConversation = false;
 
-    latestMessages.forEach((m) => {
+latestMessages.forEach((m) => {
       const sender = m.sender === "ai" ? "ai" : "user";
-      const bubble = createBubble(m.text, sender);
+      const type = m.metadata?.type || m.mode || "chat";
 
-      if (m.mode === "detect") bubble.classList.add("detect-result");
-      if (m.mode === "humanize") bubble.classList.add("humanizer-ai");
-      if (m.metadata?.systemMessage) bubble.classList.add("system-message");
+      if (sender === "ai" && type === "detect") {
+        // parse and re-render detection bubble with full formatting
+        let parsed = null;
+        try { parsed = JSON.parse(m.text); } catch (e) {}
+        const rd = parsed?.renderData;
+
+        if (rd) {
+          // build the same formatted card inline using existing variables
+          const aiBubble = createBubble("", "ai");
+          aiBubble.innerHTML = "";
+
+          const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+          const pct = (n) => `${clamp(Number(n || 0), 0, 100).toFixed(1)}%`;
+
+          const container = document.createElement("div");
+          container.style.cssText = "display:flex;flex-direction:column;gap:12px;font-family:'Exo 2',sans-serif;width:100%";
+
+          const header = document.createElement("div");
+          header.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px";
+          const titleEl = document.createElement("div");
+          titleEl.textContent = "AI Detection Result";
+          titleEl.style.cssText = "font-weight:800;font-size:1.05rem";
+          header.appendChild(titleEl);
+          container.appendChild(header);
+
+          const scoreWrap = document.createElement("div");
+          scoreWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px";
+          const scoreEl = document.createElement("div");
+          scoreEl.textContent = `AI likelihood: ${pct(rd.aiPct)}`;
+          scoreEl.style.cssText = "font-size:1.35rem;font-weight:900;color:#8ab6f9";
+          const classEl = document.createElement("div");
+          const friendly = rd.classification === "AI_ONLY" ? "AI-written" : rd.classification === "HUMAN_ONLY" ? "Human-written" : "Mixed / Uncertain";
+          classEl.textContent = `Overall: ${friendly}`;
+          classEl.style.cssText = "font-weight:600;text-align:center";
+          const metaEl = document.createElement("div");
+          metaEl.textContent = `Engine: ${rd.engine} • ${rd.words} words • ${rd.totalSentences} sentences`;
+          metaEl.style.cssText = "font-size:0.85rem;opacity:0.85;text-align:center";
+          scoreWrap.append(scoreEl, classEl, metaEl);
+          container.appendChild(scoreWrap);
+
+          const probsWrap = document.createElement("div");
+          probsWrap.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px";
+          function probCard(label, value) {
+            const box = document.createElement("div");
+            box.style.cssText = "border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px;text-align:center";
+            const l = document.createElement("div"); l.textContent = label; l.style.cssText = "font-size:0.85rem;opacity:0.85";
+            const v = document.createElement("div"); v.textContent = pct(value); v.style.cssText = "font-size:1.05rem;font-weight:800";
+            box.append(l, v); return box;
+          }
+          probsWrap.append(probCard("AI", rd.aiPct), probCard("Human", rd.humanPct));
+          container.appendChild(probsWrap);
+
+          const guide = document.createElement("div");
+          guide.style.cssText = "border:1px dashed rgba(255,255,255,0.18);border-radius:12px;padding:12px;font-size:0.9rem;opacity:0.95";
+          guide.innerHTML = `<strong>Note:</strong> AI detection is not perfect. Editing, templates, and non-native English can change results.`;
+          container.appendChild(guide);
+
+          aiBubble.appendChild(container);
+          aiBubble.classList.add("detect-result");
+        } else {
+          // fallback for old entries without renderData
+          const aiBubble = createBubble(m.text, "ai");
+          aiBubble.classList.add("detect-result");
+        }
+
+      } else if (sender === "ai" && type === "humanize") {
+        const aiBubble = createBubble("", "ai");
+        aiBubble.innerHTML = renderAIMessageToHTML(m.text);
+        aiBubble.classList.add("humanizer-ai");
+        addCopyButton(aiBubble);
+
+      } else {
+        const bubble = createBubble(m.text, sender);
+        if (m.metadata?.systemMessage) bubble.classList.add("system-message");
+      }
 
       addMessage(sender, m.text);
     });

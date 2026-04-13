@@ -2102,3 +2102,19 @@ html, body {
 .auth-modal__legal a:hover{
   text-decoration:underline;
 }
+
+#stopBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #ff6b6b;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+#stopBtn:hover {
+  background: rgba(255, 107, 107, 0.15);
+}
