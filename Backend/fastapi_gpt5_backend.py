@@ -18,6 +18,7 @@ import re
 import json
 import math
 import numpy as np
+import math
 from typing import Tuple
 import hmac
 import hashlib
@@ -27,6 +28,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from fastapi import Header
 from firebase_admin import auth as firebase_auth
+from typing import Dict, List, Optional
 import smtplib
 
 
@@ -102,12 +104,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../Frontend")  # relative path from backend folder
 
 # Hybrid behavior
-DETECT_GPT_MODEL = os.getenv("DETECT_GPT_MODEL", "gpt-4o-mini")
-DETECT_USE_GPT = os.getenv("DETECT_USE_GPT", "auto")  # "auto" | "always" | "never"
+DETECT_GPT_MODEL = os.getenv("DETECT_GPT_MODEL", "gpt-4.1")
+DETECT_USE_GPT = os.getenv("DETECT_USE_GPT", "always")
 DETECT_UNCERTAIN_LOW = float(os.getenv("DETECT_UNCERTAIN_LOW", "0.40"))
 DETECT_UNCERTAIN_HIGH = float(os.getenv("DETECT_UNCERTAIN_HIGH", "0.60"))
 DETECTOR_MODEL_PATH = os.getenv("DETECTOR_MODEL_PATH", "detector_artifacts/detector_lr.joblib")
 DETECTOR_VECTORS_PATH = os.getenv("DETECTOR_VECTORS_PATH", "detector_artifacts/feature_meta.joblib")
+
 
 HUMANIZER_SYSTEM_PROMPT = """
 You are an advanced human writing simulator trained to replicate authentic human cognitive writing patterns.
@@ -766,6 +769,18 @@ def _paragraph_split(text: str) -> List[str]:
     paras = [p.strip() for p in paras if p and p.strip()]
     return paras if paras else [text]
 
+def sentence_drift_score(sentences):
+    if len(sentences) < 2:
+        return 0.0
+
+    overlaps = []
+    for i in range(len(sentences) - 1):
+        a = set(_tokenize_words(sentences[i]))
+        b = set(_tokenize_words(sentences[i + 1]))
+        overlaps.append(len(a & b) / (len(a | b) + 1e-6))
+
+    return 1.0 - _mean(overlaps) if overlaps else 0.0
+
 
 def extract_detector_features(text: str) -> Dict[str, float]:
     """
@@ -793,6 +808,16 @@ def extract_detector_features(text: str) -> Dict[str, float]:
 
     sent_word_lens = [len(_tokenize_words(s)) for s in sents] or [n_words]
     para_word_lens = [len(_tokenize_words(p)) for p in paras] or [n_words]
+    
+    # --- paragraph-level variance (NEW) ---
+    para_sent_lens = [
+        _mean([len(_tokenize_words(s)) for s in _simple_sentence_split(p)])
+        for p in paras
+    ] or [avg_sent_len]
+
+    para_variance = _std(para_sent_lens)
+    para_uniformity = 1.0 - min(para_variance / 10.0, 1.0)
+
     word_lens = [len(w) for w in words] or [0]
 
     avg_sent_len = _mean(sent_word_lens)
@@ -819,6 +844,11 @@ def extract_detector_features(text: str) -> Dict[str, float]:
 
     digit_ratio = _safe_div(sum(1 for ch in raw if ch.isdigit()), n_chars + 1e-6)
     uppercase_ratio = _safe_div(sum(1 for ch in raw if ch.isupper()), n_chars + 1e-6)
+    # --- concreteness proxy (NEW) ---
+    capital_words = sum(1 for w in words if w.istitle())
+    number_words = sum(1 for w in words if any(c.isdigit() for c in w))
+
+    concreteness_score = _safe_div(capital_words + number_words, n_words + 1e-6)
 
     # punctuation usage
     comma_ratio = _safe_div(raw.count(","), n_chars + 1e-6)
@@ -892,6 +922,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
         else:
             sent_endings.append("other")
     ending_diversity = _safe_div(len(set(sent_endings)), len(sent_endings) + 1e-6)
+    drift_score = sentence_drift_score(sents)
 
     # readability optional
     fk_grade = 0.0
@@ -912,6 +943,99 @@ def extract_detector_features(text: str) -> Dict[str, float]:
         sum(1 for s in sents if s.strip().endswith((".", "?", "!"))),
         len(sents) + 1e-6
     )
+    # --- AI fingerprint signals (NEW) ---
+
+    # 1. Formality consistency (AI tends to be overly consistent)
+    formal_words = {"therefore", "however", "moreover", "thus", "additionally"}
+    informal_words = {"well", "honestly", "like", "you know", "kind of"}
+
+    formal_count = _count_phrase_hits(lower_raw, formal_words)
+    informal_count = _count_phrase_hits(lower_raw, informal_words)
+
+    formality_balance = _safe_div(formal_count, informal_count + 1e-6)
+
+    # 2. Hedging language (AI often hedges safely)
+    hedge_words = {"may", "might", "could", "suggests", "appears", "likely"}
+    hedge_ratio = _safe_div(
+        sum(1 for w in words if w in hedge_words),
+        n_words + 1e-6
+    )
+
+    self_ref_words = {
+        "i think", "i believe", "in my view", "from my perspective",
+        "personally", "i feel", "i would say"
+    }
+
+    self_ref_hits = _count_phrase_hits(lower_raw, self_ref_words)
+    self_ref_ratio = _safe_div(self_ref_hits, n_sents + 1e-6)
+
+    # 3. Generic phrasing (very strong AI signal)
+    generic_phrases = {
+        "in today's world", "it is important to note", "plays a crucial role",
+        "has become increasingly", "a wide range of", "various factors"
+    }
+    generic_hits = _count_phrase_hits(lower_raw, generic_phrases)
+    generic_ratio = _safe_div(generic_hits, n_sents + 1e-6)
+
+    # 4. Sentence symmetry (AI tends to balance sentence lengths)
+    sent_len_diff = [
+        abs(sent_word_lens[i] - sent_word_lens[i-1])
+        for i in range(1, len(sent_word_lens))
+    ] if len(sent_word_lens) > 1 else [0.0]
+
+    symmetry_score = 1.0 - min(_mean(sent_len_diff) / 20.0, 1.0)
+
+    # 5. Over-coherence (AI flows too smoothly)
+    over_coherence = 1.0 - min(avg_adj_overlap / 0.8, 1.0)
+    
+    # --- Adversarial / humanizer-detection signals (NEW) ---
+
+    # 1. Fake burstiness (variation that is TOO controlled)
+    burstiness_variation = _std(sent_word_lens)
+    burstiness_mean = _mean(sent_word_lens)
+    burstiness_consistency = 1.0 - min(burstiness_variation / (burstiness_mean + 1e-6), 1.0)
+
+    # 2. Entropy inconsistency (human text fluctuates more)
+    chunk_size = max(50, int(len(raw) / 5))
+    entropy_chunks = []
+    for i in range(0, len(raw), chunk_size):
+        chunk = raw[i:i+chunk_size]
+        entropy_chunks.append(_shannon_entropy_from_char_ngrams(chunk, n=3))
+
+    entropy_std = _std(entropy_chunks)
+    entropy_uniformity = 1.0 - min(entropy_std / 1.5, 1.0)
+
+    # 3. Sudden tone shifts (AI fake drift)
+    tone_markers = [
+        "honestly", "well", "anyway", "that said", "come to think of it",
+        "now that I think about it", "which is interesting"
+    ]
+    tone_shift_hits = _count_phrase_hits(lower_raw, set(tone_markers))
+    tone_shift_ratio = _safe_div(tone_shift_hits, n_sents + 1e-6)
+
+    # 4. Sentence rhythm irregularity (human is messy, AI is patterned)
+    sentence_diffs = [
+        sent_word_lens[i] - sent_word_lens[i-1]
+        for i in range(1, len(sent_word_lens))
+    ] if len(sent_word_lens) > 1 else [0.0]
+
+    rhythm_std = _std(sentence_diffs)
+    rhythm_uniformity = 1.0 - min(rhythm_std / 10.0, 1.0)
+
+    # 5. Imperfection placement (AI places imperfections "strategically")
+    short_sent_positions = [
+        i for i, l in enumerate(sent_word_lens) if l < 6
+    ]
+
+    if len(short_sent_positions) > 1:
+        spacing = [
+            short_sent_positions[i] - short_sent_positions[i-1]
+            for i in range(1, len(short_sent_positions))
+        ]
+        imperfection_pattern = 1.0 - min(_std(spacing) / 5.0, 1.0)
+    else:
+        imperfection_pattern = 0.0
+
 
     return {
         # size
@@ -926,6 +1050,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
         "burstiness": float(burstiness),
         "avg_para_len": float(avg_para_len),
         "std_para_len": float(std_para_len),
+        "para_uniformity": float(para_uniformity),
 
         # word shape / lexical style
         "avg_word_len": float(avg_word_len),
@@ -967,6 +1092,23 @@ def extract_detector_features(text: str) -> Dict[str, float]:
         "char_entropy_3": float(char_entropy_3),
         "fk_grade": float(fk_grade),
         "flesch": float(flesch),
+        
+        # --- AI fingerprint features ---
+        "formality_balance": float(formality_balance),
+        "hedge_ratio": float(hedge_ratio),
+        "generic_ratio": float(generic_ratio),
+        "symmetry_score": float(symmetry_score),
+        "over_coherence": float(over_coherence),
+        
+        # --- adversarial features ---
+        "burstiness_consistency": float(burstiness_consistency),
+        "entropy_uniformity": float(entropy_uniformity),
+        "tone_shift_ratio": float(tone_shift_ratio),
+        "rhythm_uniformity": float(rhythm_uniformity),
+        "imperfection_pattern": float(imperfection_pattern),
+        "self_ref_ratio": float(self_ref_ratio),
+        "concreteness_score": float(concreteness_score),
+        "sentence_drift": float(drift_score),
     }
     
 def looks_ai_like(f):
@@ -1152,7 +1294,16 @@ def heuristic_ai_probability(feats: Dict[str, float]) -> float:
     rep = feats.get("rep_bigram_ratio", 0.0)
     stop = feats.get("stop_ratio", 0.0)
     avg_len = feats.get("avg_sent_len", 0.0)
-
+    generic = feats.get("generic_ratio", 0.0)
+    hedge = feats.get("hedge_ratio", 0.0)
+    symmetry = feats.get("symmetry_score", 0.0)
+    over_coh = feats.get("over_coherence", 0.0)
+    burst_cons = feats.get("burstiness_consistency", 0.0)
+    entropy_uni = feats.get("entropy_uniformity", 0.0)
+    tone_shift = feats.get("tone_shift_ratio", 0.0)
+    rhythm_uni = feats.get("rhythm_uniformity", 0.0)
+    imperf = feats.get("imperfection_pattern", 0.0)
+    
     # normalize-ish contributions
     score += (0.40 * (1.0 - min(ent / 6.0, 1.0)))      # lower entropy => higher AI score
     score += (0.20 * (1.0 - min(burst / 0.8, 1.0)))    # lower burstiness => higher AI score
@@ -1161,66 +1312,334 @@ def heuristic_ai_probability(feats: Dict[str, float]) -> float:
     score += (0.05 * min(stop / 0.60, 1.0))            # moderate stopword ratio can correlate with polished AI
     score += (0.05 * min(avg_len / 22.0, 1.0))         # long uniform sentences slightly push AI score
 
+    # --- NEW AI fingerprint scoring ---
+    score += (0.10 * min(generic / 0.3, 1.0))     # generic phrasing
+    score += (0.08 * min(hedge / 0.1, 1.0))       # hedging language
+    score += (0.07 * symmetry)                    # sentence balance
+    score += (0.07 * over_coh)                    # overly smooth flow
+
+    # --- adversarial scoring ---
+    score += (0.10 * burst_cons)                  # fake burstiness
+    score += (0.10 * entropy_uni)                # too uniform entropy
+    score += (0.08 * rhythm_uni)                 # patterned rhythm
+    score += (0.07 * imperf)                    # artificial imperfection spacing
+    score += (0.05 * min(tone_shift / 0.3, 1.0))  # injected drift phrases
+    
     # clamp
     return float(max(0.0, min(score, 1.0)))
+
+
+
+def structural_score(feats: Dict[str, float]) -> float:
+    """
+    Stable structural signal (Scribbr-style normalized blend).
+    Avoids over-weighting repetition/heuristic inflation.
+    """
+
+    burst = max(0.0, min(feats.get("burstiness", 0.0), 1.0))
+    ttr = max(0.0, min(feats.get("ttr", 0.0), 1.0))
+    rep = max(0.0, min(feats.get("rep_bigram_ratio", 0.0), 1.0))
+    generic = max(0.0, min(feats.get("generic_ratio", 0.0), 1.0))
+    hedge = max(0.0, min(feats.get("hedge_ratio", 0.0), 1.0))
+    entropy = max(0.0, min(feats.get("char_entropy_3", 0.0) / 6.0, 1.0))
+
+    # -------------------------
+    # Core intuition:
+    # AI-like text = low variation + low entropy + more repetition patterns
+    # Human-like text = higher burstiness + diversity + irregular structure
+    # -------------------------
+
+    burst_score = 1.0 - burst
+    ttr_score = 1.0 - ttr
+    entropy_score = 1.0 - entropy
+
+    # repetition should NOT be over-amplified
+    rep_score = rep
+    generic_score = generic
+    hedge_score = hedge
+
+    # weighted balance (more stable than arithmetic boosting)
+    score = (
+        burst_score * 0.25 +
+        ttr_score * 0.20 +
+        entropy_score * 0.20 +
+        rep_score * 0.15 +
+        generic_score * 0.10 +
+        hedge_score * 0.10
+    )
+
+    # mild nonlinear compression (prevents extreme clustering)
+    score = math.sqrt(score)
+
+    return max(0.0, min(score, 1.0))
 
 # ---------------------------
 # GPT "judge" layer
 # ---------------------------
 
 DETECT_JUDGE_PROMPT = """
-You are an AI-writing probability analyst.
+You are an expert forensic linguist and AI detection specialist. Your job is to analyze text and determine with high confidence whether it was written by a human or generated by an AI language model (such as ChatGPT, Claude, Gemini, etc.).
 
-Task:
-- Analyze the writing and estimate likelihood it was AI-generated.
-- Be conservative (avoid false positives).
-- Output STRICT JSON ONLY.
+Analyze the provided text across ALL of these dimensions:
 
-Return schema:
+1. TOKEN PREDICTABILITY — Does each word choice feel statistically "safe"? AI models pick the most probable next token. Look for smooth, frictionless phrasing that never surprises.
+
+2. SENTENCE RHYTHM — AI produces uniform sentence lengths. Humans mix short punchy sentences with longer ones. Look for monotonous cadence.
+
+3. STRUCTURAL COHERENCE — AI text is often too well-organized. Humans digress, backtrack, and write unevenly. Perfect logical flow is an AI signal.
+
+4. LEXICAL DIVERSITY — AI reuses safe vocabulary. Humans make unusual, idiosyncratic word choices.
+
+5. HEDGING & FORMALITY — AI over-uses hedging ("it is important to note", "it can be argued", "plays a crucial role") and formal transitions ("furthermore", "moreover", "in conclusion").
+
+6. SEMANTIC SPECIFICITY — Human writing is grounded in specific details, anecdotes, opinions. AI writing stays generic and surface-level.
+
+7. PUNCTUATION & FORMATTING — AI overuses em-dashes, colons, bullet-like sentence structure, and balanced clause pairs.
+
+8. PARAGRAPH-LEVEL ANALYSIS — Analyze each paragraph separately. Identify which paragraphs are most AI-like.
+
+SENTENCE-LEVEL ANALYSIS:
+For each sentence, estimate a probability (0.0–1.0) that it was AI-generated.
+
+Return STRICT valid JSON, nothing else, no markdown, no explanation outside the JSON:
+
 {
-  "ai_probability": number,          // 0-100
-  "confidence": "low"|"medium"|"high",
+  "document_ai_probability": <float 0.0-1.0>,
+  "confidence": "<low|medium|high>",
+  "classification": "<AI_ONLY|MIXED|HUMAN_ONLY>",
+  "reasoning": "<2-3 sentence forensic explanation of the strongest signals>",
   "signals": {
-     "uniformity": number,           // 0-10
-     "predictability": number,       // 0-10
-     "repetition": number,           // 0-10
-     "personal_touch": number        // 0-10 (higher = more human)
+    "token_predictability": <float 0.0-1.0>,
+    "rhythm_uniformity": <float 0.0-1.0>,
+    "structural_perfection": <float 0.0-1.0>,
+    "lexical_genericness": <float 0.0-1.0>,
+    "ai_transition_density": <float 0.0-1.0>,
+    "semantic_specificity": <float 0.0-1.0>
   },
-  "reason": string                  // <= 240 chars
+  "sentences": [
+    {"text": "<first ~8 words of sentence>", "ai_prob": <float 0.0-1.0>}
+  ]
 }
 
-Rules:
-- If the text is short (<120 words), lower confidence.
-- If it contains personal specifics, idiosyncratic mistakes, or uneven structure, lower AI probability.
+CALIBRATION RULES — follow these strictly:
+
+- Clearly AI-generated text (standard essay style, generic explanations, no personal voice): 0.80–1.0
+- Lightly humanized AI text: 0.65–0.80
+- Mixed (human + AI): 0.40–0.65
+- Mostly human with AI polish: 0.20–0.40
+- Clearly human-written (with quirks, uneven flow, personal voice): 0.0–0.20
+
+STRICT RULES:
+- If the text is a clean, well-structured essay with generic phrasing and no personal voice, you MUST assign ≥ 0.75
+- Do NOT be conservative
+- Do NOT default to low scores
+- You are a classifier, not a skeptic
+
+Be decisive. Do not cluster near 0.5 unless genuinely uncertain.
+Text under 80 words: set confidence to "low".
 """
 
 async def gpt_judge_probability(text: str) -> Optional[Dict[str, Any]]:
     if not OPENAI_API_KEY:
         return None
-    try:
-        resp = await asyncio.to_thread(
-            client.responses.create,
-            model=DETECT_GPT_MODEL,
-            input=[
-                {"role": "system", "content": DETECT_JUDGE_PROMPT},
-                {"role": "user", "content": text[:12000]},
-            ],
-            temperature=0.2,
-            max_output_tokens=260,
-        )
-        raw = extract_text_from_response(resp).strip()
 
-        # strict-ish JSON parse with fallback
+    truncated = text[:14000]
+
+    try:
+        # ─────────────────────────────────────────
+        # PASS 1 — Full forensic analysis
+        # ─────────────────────────────────────────
+        resp = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4.1",
+            messages=[
+                {"role": "system", "content": DETECT_JUDGE_PROMPT},
+                {"role": "user", "content": truncated},
+            ],
+            temperature=0.1,
+            max_tokens=2000,
+        )
+
+        raw = (resp.choices[0].message.content or "").strip()
+        raw = re.sub(r"^```json\s*", "", raw)
+        raw = re.sub(r"^```\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        raw = raw.strip()
+
         try:
-            return json.loads(raw)
+            result = json.loads(raw)
         except Exception:
-            # attempt to locate JSON in text
             m = re.search(r"\{.*\}", raw, re.S)
             if m:
-                return json.loads(m.group(0))
-        return None
+                result = json.loads(m.group(0))
+            else:
+                return None
+
+        # ─────────────────────────────────────────
+        # PASS 2 — Structural + pattern deep-dive
+        # Always runs as a second independent opinion
+        # ─────────────────────────────────────────
+        resp2 = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4.1",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a structural writing analyst specializing in AI detection. "
+                        "Ignore topic and content entirely. Focus ONLY on writing mechanics:\n\n"
+                        "1. SENTENCE RHYTHM — Are lengths too uniform? Count and compare.\n"
+                        "2. TRANSITION WORDS — Count uses of: however, furthermore, moreover, additionally, "
+                        "in conclusion, it is important to note, plays a crucial role, it is worth noting.\n"
+                        "3. PARAGRAPH STRUCTURE — Does each paragraph follow the same formula (topic → evidence → conclusion)?\n"
+                        "4. HEDGING DENSITY — Count: may, might, could, suggests, appears, arguably, it can be said.\n"
+                        "5. SPECIFICITY — Are claims backed by concrete details, names, numbers, personal experience? "
+                        "Or are they generic and surface-level?\n"
+                        "6. HUMAN QUIRKS — Any typos, self-corrections, digressions, very unusual phrasing, "
+                        "emotional tangents, or personal voice?\n\n"
+                        "Return ONLY valid JSON, no markdown:\n"
+                        "{\n"
+                        "  \"structural_ai_probability\": <float 0.0-1.0>,\n"
+                        "  \"transition_word_count\": <int>,\n"
+                        "  \"hedging_word_count\": <int>,\n"
+                        "  \"rhythm_uniformity\": <float 0.0-1.0>,\n"
+                        "  \"has_human_quirks\": <bool>,\n"
+                        "  \"is_generic\": <bool>,\n"
+                        "  \"structural_reasoning\": \"<one sentence>\"\n"
+                        "}"
+                    ),
+                },
+                {"role": "user", "content": truncated},
+            ],
+            temperature=0.1,
+            max_tokens=400,
+        )
+
+        raw2 = (resp2.choices[0].message.content or "").strip()
+        raw2 = re.sub(r"```json|```", "", raw2).strip()
+
+        result2: Dict[str, Any] = {}
+        try:
+            result2 = json.loads(raw2)
+        except Exception:
+            m2 = re.search(r"\{.*\}", raw2, re.S)
+            if m2:
+                try:
+                    result2 = json.loads(m2.group(0))
+                except Exception:
+                    pass
+
+        # ─────────────────────────────────────────
+        # PASS 3 — Borderline refinement
+        # Only fires when passes 1 & 2 disagree OR score is near 0.5
+        # ─────────────────────────────────────────
+        p1 = float(result.get("document_ai_probability", 0.5))
+        if p1 > 1.0:
+            p1 = p1 / 100.0
+        p1 = max(0.0, min(p1, 1.0))
+
+        p2 = float(result2.get("structural_ai_probability", p1))
+        # 🔥 HARD OVERRIDE: generic + no quirks = likely AI
+        if result2.get("is_generic") and not result2.get("has_human_quirks"):
+            p2 = max(p2, 0.65)
+        if p2 > 1.0:
+            p2 = p2 / 100.0
+        p2 = max(0.0, min(p2, 1.0))
+        
+                # Strong structure + high rhythm = AI tendency
+        if result2.get("rhythm_uniformity", 0) > 0.7 and result2.get("is_generic"):
+            p2 = max(p2, 0.70)
+
+        blended_so_far = (p1 * 0.50) + (p2 * 0.50)
+        disagreement = abs(p1 - p2)
+
+        pass3_reasoning = ""
+
+        if 0.30 <= blended_so_far <= 0.70 or disagreement > 0.25:
+            # Passes disagree or score is genuinely borderline — bring in a tiebreaker
+            resp3 = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="gpt-4.1",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are making a final decisive ruling on whether this text is AI-generated or human-written. "
+                            "Two previous analyses scored it near 50% or disagreed with each other. "
+                            "You must break the tie.\n\n"
+                            "Ask yourself:\n"
+                            "- Does this text feel LIVED IN? Does it have a real person's voice?\n"
+                            "- Is there anything in this text only a human with real experience would write?\n"
+                            "- Does the text flow like someone THINKING, or like a machine PRESENTING?\n"
+                            "- Would a student, journalist, or professional naturally write exactly like this?\n\n"
+                            "Be decisive. Lean toward your gut read after careful analysis. "
+                            "Do NOT default to 0.5.\n\n"
+                            "Return ONLY valid JSON:\n"
+                            "{\"final_ai_probability\": <float 0.0-1.0>, \"decisive_signal\": \"<one clear sentence>\"}"
+                        ),
+                    },
+                    {"role": "user", "content": truncated[:8000]},
+                ],
+                temperature=0.15,
+                max_tokens=120,
+            )
+
+            raw3 = (resp3.choices[0].message.content or "").strip()
+            raw3 = re.sub(r"```json|```", "", raw3).strip()
+
+            p3 = blended_so_far  # default if parse fails
+            try:
+                result3 = json.loads(raw3)
+                p3_raw = float(result3.get("final_ai_probability", blended_so_far))
+                if p3_raw > 1.0:
+                    p3_raw = p3_raw / 100.0
+                p3 = max(0.0, min(p3_raw, 1.0))
+                pass3_reasoning = result3.get("decisive_signal", "")
+            except Exception:
+                m3 = re.search(r'"final_ai_probability"\s*:\s*([0-9.]+)', raw3)
+                if m3:
+                    try:
+                        p3 = max(0.0, min(float(m3.group(1)), 1.0))
+                    except Exception:
+                        pass
+
+            # Final blend: pass 3 is the tiebreaker, gets highest weight
+            final_probability = (p1 * 0.30) + (p2 * 0.50) + (p3 * 0.20)
+        else:
+            # Passes agree and score is clear — no need for pass 3
+            final_probability = blended_so_far
+            pass3_reasoning = "Passes 1 & 2 in agreement — no tiebreaker needed."
+            # 🔥 Penalize generic structured essays
+        if result2.get("is_generic") and result2.get("transition_word_count", 0) >= 3:
+            final_probability += 0.15
+
+        final_probability = max(0.0, min(final_probability, 1.0))
+
+        # ─────────────────────────────────────────
+        # Merge everything into result
+        # ─────────────────────────────────────────
+        result["document_ai_probability"] = round(final_probability, 4)
+
+        combined_reasoning = " | ".join(filter(bool, [
+            result.get("reasoning", ""),
+            result2.get("structural_reasoning", ""),
+            pass3_reasoning,
+        ]))
+        result["reasoning"] = combined_reasoning
+
+        # Inject pass 2 structural signals into result signals
+        if "signals" not in result or not isinstance(result.get("signals"), dict):
+            result["signals"] = {}
+
+        result["signals"]["rhythm_uniformity"] = result2.get("rhythm_uniformity", 0.0)
+        result["signals"]["transition_word_count"] = float(result2.get("transition_word_count", 0))
+        result["signals"]["has_human_quirks"] = 0.0 if result2.get("has_human_quirks", False) else 1.0
+        result["signals"]["is_generic"] = 1.0 if result2.get("is_generic", False) else 0.0
+
+        return result
+
     except Exception as e:
-        logger.warning(f"GPT judge failed: {e}")
+        logger.exception(f"GPT judge failed: {e}")
         return None
     
     
@@ -1426,131 +1845,205 @@ class DetectResponse(BaseModel):
 @app.post("/api/detect", response_model=DetectResponse)
 async def detect(req: DetectRequest):
     user_text = (req.document or "").strip()
+
     if not user_text:
         raise HTTPException(status_code=400, detail="Empty text provided")
 
-    # 1) ML score (fast)
-    ml_p, feats = ml_ai_probability(user_text)
+    word_count = len(user_text.split())
 
-    # If no trained model, use heuristic baseline
-    base_p = ml_p if ml_p is not None else heuristic_ai_probability(feats)
+    # -------------------
+    # 1. ALWAYS run the GPT judge — it is now the PRIMARY engine
+    # -------------------
+    gpt_result = await gpt_judge_probability(user_text)
 
-    # 2) Decide whether to call GPT judge
-    words = int(feats.get("n_words", 0))
-    use_gpt = False
+    # -------------------
+    # 2. Extract GPT probability
+    # -------------------
+    gpt_p: Optional[float] = None
+    gpt_confidence = "low"
+    gpt_reasoning = ""
+    gpt_signals = {}
+    gpt_sentences_raw = []
 
-    if DETECT_USE_GPT == "always":
-        use_gpt = True
-    elif DETECT_USE_GPT == "never":
-        use_gpt = False
-    else:
-        # auto mode: only when uncertain or short text (short text is hard -> GPT helps)
-        use_gpt = (DETECT_UNCERTAIN_LOW <= base_p <= DETECT_UNCERTAIN_HIGH) or (words < 140)
+    if isinstance(gpt_result, dict):
+        raw_val = gpt_result.get("document_ai_probability")
+        if raw_val is not None:
+            try:
+                gpt_p = float(raw_val)
+                # GPT already returns 0–1, but guard against 0–100 scale
+                if gpt_p > 1.0:
+                    gpt_p = gpt_p / 100.0
+                gpt_p = max(0.0, min(gpt_p, 1.0))
+            except Exception:
+                gpt_p = None
 
-    gpt_result = None
-    if use_gpt:
-        gpt_result = await gpt_judge_probability(user_text)
+        gpt_confidence = gpt_result.get("confidence", "medium")
+        gpt_reasoning = gpt_result.get("reasoning", "")
+        gpt_signals = gpt_result.get("signals", {})
+        gpt_sentences_raw = gpt_result.get("sentences", [])
 
-    # 3) Fuse scores
-    gpt_p = None
-    if isinstance(gpt_result, dict) and "ai_probability" in gpt_result:
-        try:
-            gpt_p = float(gpt_result["ai_probability"]) / 100.0
-        except Exception:
-            gpt_p = None
+    # -------------------
+    # 3. Heuristic as FALLBACK only (when GPT fails)
+    # -------------------
+    feats = extract_detector_features(user_text)
+    heuristic_p = heuristic_ai_probability(feats)
 
     if gpt_p is not None:
-        # weights: ML/heuristic is more stable; GPT adds nuance
-        final_p = (0.65 * base_p) + (0.35 * gpt_p)
+        # dynamic weighting based on agreement
+        agreement = 1.0 - abs(gpt_p - heuristic_p)
+
+        gpt_weight = 0.75 + (0.15 * agreement)
+        heuristic_weight = 1.0 - gpt_weight
+
+        final_p = (gpt_p * gpt_weight) + (heuristic_p * heuristic_weight)
+
     else:
-        final_p = base_p
+        logger.warning("GPT judge unavailable; using heuristic fallback")
+        final_p = heuristic_p
 
-    final_p = float(max(0.0, min(final_p, 1.0)))
-    confidence_pct = round(final_p * 100.0, 2)
+    final_p = max(0.0, min(final_p, 1.0))
 
-    # 4) Classification (match your UI expectations)
-    if confidence_pct >= 85:
+    # -------------------
+    # 4. Short text penalty — be less confident on very short texts
+    # -------------------
+    if word_count < 50:
+        # Pull toward 0.5 (uncertain) for very short texts
+        final_p = final_p * 0.6 + 0.5 * 0.4
+
+    # -------------------
+    # 5. Classification thresholds
+    # -------------------
+    if final_p >= 0.75:
         classification = "AI_ONLY"
-    elif confidence_pct <= 15:
+    elif final_p <= 0.25:
         classification = "HUMAN_ONLY"
     else:
         classification = "MIXED"
+
+    # Override with GPT's own classification if GPT is confident
+    if gpt_p is not None and gpt_confidence == "high" and word_count > 80:
+        gpt_cls = gpt_result.get("classification", "")
+
+        if gpt_cls == "AI_ONLY":
+            final_p = max(final_p, 0.75)
+        elif gpt_cls == "HUMAN_ONLY":
+            final_p = min(final_p, 0.25)
+
+        if gpt_cls in ("AI_ONLY", "HUMAN_ONLY", "MIXED"):
+            classification = gpt_cls
 
     class_probs = {
         "AI": round(final_p, 4),
         "HUMAN": round(1.0 - final_p, 4),
     }
+    
+    # 🔥 Add explicit percentage for frontend safety
+    confidence_percent = round(final_p * 100, 2)
 
-    # 5) Sentence-level scoring for highlights (keeps your UI stats useful)
-    sents = _simple_sentence_split(user_text)
-    sent_stats: List[SentenceStats] = []
+    uncertainty_score = abs(final_p - 0.5) * 2
+    uncertainty_score = round(1.0 - uncertainty_score, 4)
+    # -------------------
+    # 6. Build sentence-level stats from GPT's sentence analysis
+    # -------------------
+    sents_from_split = _simple_sentence_split(user_text)
+    sent_stats = []
     highlighted_count = 0
 
-    for s in sents[:120]:  # guard
-        s_ml_p, s_feats = ml_ai_probability(s)
-        s_base = s_ml_p if s_ml_p is not None else heuristic_ai_probability(s_feats)
-        s_prob = float(max(0.0, min(s_base, 1.0)))
+    # Build a lookup from GPT sentence results by matching text prefix
+    gpt_sent_lookup: Dict[str, float] = {}
+    for gs in gpt_sentences_raw:
+        if isinstance(gs, dict):
+            snippet = (gs.get("text") or "").strip().lower()[:40]
+            try:
+                prob = float(gs.get("ai_prob", final_p))
+                if prob > 1.0:
+                    prob = prob / 100.0
+                gpt_sent_lookup[snippet] = max(0.0, min(prob, 1.0))
+            except Exception:
+                pass
 
-        highlighted = (s_prob >= 0.70) and (len(_tokenize_words(s)) >= 6)
+    for s in sents_from_split[:200]:
+        # Try to match GPT's sentence-level score
+        snippet = s.strip().lower()[:40]
+        best_match_prob: Optional[float] = None
+
+        for key, val in gpt_sent_lookup.items():
+            # Fuzzy prefix match
+            if snippet[:20] in key or key[:20] in snippet:
+                best_match_prob = val
+                break
+
+        if best_match_prob is None:
+            # Fall back to document-level probability with small heuristic nudge
+            s_feats = extract_detector_features(s)
+            s_heuristic = heuristic_ai_probability(s_feats)
+            # Blend document-level GPT score with sentence heuristic
+            best_match_prob = (final_p * 0.7) + (s_heuristic * 0.3)
+
+        s_prob = round(max(0.0, min(best_match_prob, 1.0)), 4)
+        token_len = len(_tokenize_words(s))
+        highlighted = s_prob >= 0.70 and token_len >= 5
+
         if highlighted:
             highlighted_count += 1
 
         sent_stats.append(
             SentenceStats(
                 sentence=s,
-                generated_prob=round(s_prob, 4),
+                generated_prob=s_prob,
                 class_probabilities={
-                    "AI": round(s_prob, 4),
+                    "AI": s_prob,
                     "HUMAN": round(1.0 - s_prob, 4),
                 },
-                highlighted=highlighted
+                highlighted=highlighted,
             )
         )
 
-    burstiness = float(feats.get("burstiness", 0.0))
-
-    # 6) Explanation (frontend extracts Confidence Score from here)
-    judge_reason = ""
-    if isinstance(gpt_result, dict):
-        reason = gpt_result.get("reason")
-        conf = gpt_result.get("confidence")
-        if isinstance(reason, str) and reason.strip():
-            judge_reason = reason.strip()
-        if conf:
-            judge_reason = (judge_reason + f" (judge_confidence={conf})").strip()
-
-    model_note = "ML" if ml_p is not None else "Heuristic"
-    if gpt_p is not None:
-        model_note += "+GPT"
+    # -------------------
+    # 7. Build explanation
+    # -------------------
+    signal_lines = ""
+    if gpt_signals:
+        signal_lines = " | ".join(
+            f"{k.replace('_', ' ')}={round(v, 2)}"
+            for k, v in gpt_signals.items()
+        )
 
     explanation_text = (
-        f"Result based on {model_note} hybrid analysis.\n"
-        f"Signals: burstiness={round(burstiness, 3)}, ttr={round(feats.get('ttr', 0.0), 3)}, "
-        f"rep_bigram_ratio={round(feats.get('rep_bigram_ratio', 0.0), 3)}, "
-        f"entropy3={round(feats.get('char_entropy_3', 0.0), 3)}.\n"
-    )
-    if judge_reason:
-        explanation_text += f"Judge note: {judge_reason}\n"
+        f"{gpt_reasoning}\n"
+        f"Signals: {signal_lines}\n"
+        f"GPT confidence: {gpt_confidence} | "
+        f"Word count: {word_count} | "
+        f"AI probability: {round(final_p * 100, 1)}%"
+    ).strip()
 
-    explanation_text += f"Confidence Score: {confidence_pct}%"
-
-    # 7) writing_stats: keep extra useful stats (your UI already displays some)
+    # -------------------
+    # 8. Writing stats
+    # -------------------
     writing_stats = {
-        "engine": model_note,
-        "features": {k: round(float(v), 4) for k, v in feats.items()},
-        "base_probability": round(float(base_p), 4),
+        "gpt_probability": round(float(gpt_p), 4) if gpt_p is not None else None,
+        "heuristic_probability": round(float(heuristic_p), 4),
         "final_probability": round(float(final_p), 4),
+        "gpt_confidence": gpt_confidence,
+        "word_count": word_count,
+        "engine": "GPT-primary + heuristic-stabilizer",
     }
-    if gpt_p is not None:
-        writing_stats["gpt_probability"] = round(float(gpt_p), 4)
+    if gpt_signals:
+        writing_stats["gpt_signals"] = gpt_signals
+
+    burstiness = float(feats.get("burstiness", 0.0))
 
     text_stats = TextStats(
-        total_sentences=len(sents),
+        total_sentences=len(sents_from_split),
         highlighted_as_ai=highlighted_count,
         burstiness=burstiness,
         writing_stats=writing_stats,
-        sentences=sent_stats
+        sentences=sent_stats,
     )
+    
+    print("DEBUG GPT P:", gpt_p)
+    print("DEBUG HEURISTIC P:", heuristic_p)
+    print("DEBUG FINAL P:", final_p)
 
     return DetectResponse(
         document=user_text,
@@ -1558,9 +2051,11 @@ async def detect(req: DetectRequest):
         class_probabilities=class_probs,
         explanation=explanation_text,
         text_stats=text_stats,
-        subclass=None
+        subclass=None,
+        uncertainty_score=uncertainty_score,
+        confidence_percent=confidence_percent
     )
-
+    
 
 @app.post("/api/detect/reload")
 async def reload_detector():

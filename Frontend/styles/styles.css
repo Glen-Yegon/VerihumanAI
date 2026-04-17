@@ -10,6 +10,8 @@
     box-sizing: border-box;
 }
 
+
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--color-light);
@@ -1841,6 +1843,7 @@ html, body {
   border-radius: 12px;
   cursor: pointer;
 }
+
 /* =========================
    Auth Modal (Improved)
    - translucent backdrop
@@ -2117,4 +2120,152 @@ html, body {
 }
 #stopBtn:hover {
   background: rgba(255, 107, 107, 0.15);
+}
+
+/* =========================
+   GLOBAL LOADER OVERLAY
+========================= */
+.app-loader {
+  position: fixed;
+  inset: 0;
+
+  /* ✨ lighter, glass-like overlay */
+  background: rgba(0, 36, 107, 0.18);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 99999;
+
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.app-loader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(138, 182, 249, 0.12),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.app-loader.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-card {
+  text-align: center;
+  padding: 24px;
+  max-width: 320px;
+  width: 90%;
+  border-radius: 16px;
+
+  background: rgba(202, 220, 252, 0.06);
+  border: 1px solid rgba(138, 182, 249, 0.25);
+
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.4),
+    0 0 25px rgba(138, 182, 249, 0.12);
+
+  color: var(--color-light);
+  font-family: "Inter", sans-serif;
+}
+
+.loader-card h2 {
+  font-family: "Exo 2", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.loader-card p {
+  font-family: "Inter", sans-serif;
+}
+
+/* Spinner */
+.spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top: 3px solid #8ab6f9;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile tuning */
+@media (max-width: 600px) {
+  .loader-card {
+    padding: 18px;
+  }
+
+  .loader-card h2 {
+    font-size: 1rem;
+  }
+
+  .loader-card p {
+    font-size: 0.85rem;
+  }
+}
+
+.loader-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.loader-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-mid);
+  opacity: 0.4;
+  animation: loaderBounce 1.2s infinite ease-in-out;
+}
+
+/* stagger animation */
+.loader-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loader-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes loaderBounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+.new-chat-banner {
+  animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

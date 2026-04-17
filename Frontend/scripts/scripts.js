@@ -3,7 +3,7 @@ import {
   getChatById,
   deleteChatHistory,
   setCurrentChatDocId,
-} from "../firebase-config/firebase-history.js";
+} from "../firebase-config/firebase-history.min.js";
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -27,8 +27,66 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+const appLoader = document.getElementById("app-loader");
+let allChats = []; // shared state
+let loaderTimeout = null;
 
+/* -----------------------------
+   AUTH CHECK SAFETY
+------------------------------*/
+function safeIsLoggedIn() {
+  return !!(
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID")
+  );
+}
 
+/* -----------------------------
+   HIDE LOADER (SAFE)
+------------------------------*/
+function hideLoader() {
+  if (!appLoader) return;
+
+  clearTimeout(loaderTimeout);
+
+  appLoader.classList.add("hidden");
+}
+
+/* -----------------------------
+   SHOW LOADER (SAFE GUARD)
+------------------------------*/
+function showLoader(message = "Loading your workspace") {
+  if (!appLoader) return;
+
+  // 🚨 BLOCK if not logged in
+  if (!safeIsLoggedIn()) {
+    hideLoader();
+    return;
+  }
+
+  clearTimeout(loaderTimeout);
+
+  appLoader.classList.remove("hidden");
+
+  const title = appLoader.querySelector("h2");
+  const text = appLoader.querySelector("p");
+
+  if (title) title.textContent = message;
+  if (text) text.textContent = "Please wait while we retrieve your data...";
+}
+
+/* -----------------------------
+   GLOBAL SAFETY ON LOAD
+------------------------------*/
+document.addEventListener("DOMContentLoaded", () => {
+  if (!safeIsLoggedIn()) {
+    hideLoader();
+
+    // optional: ensure no stuck overlay
+    const el = document.getElementById("app-loader");
+    if (el) el.classList.add("hidden");
+  }
+});
 
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -173,27 +231,38 @@ async function loadChatHistory() {
   const userUID = sessionStorage.getItem("userUID");
   if (!userUID) return;
 
-  const chats = await getAllChats(userUID); // from firebase-history.js
-  allChats = chats; // store all chats for search filtering
+  showLoader("Loading chat history...");
 
-  chatHistoryList.innerHTML = "";
+  try {
+    const chats = await getAllChats(userUID);
+    allChats = chats;
 
-  if (!chats || chats.length === 0) {
+    chatHistoryList.innerHTML = "";
+
+    if (!chats || chats.length === 0) {
+      chatHistoryList.innerHTML =
+        "<p style='padding:10px;color:gray;'>No conversations yet</p>";
+      return;
+    }
+
+    chats.forEach((chat) => {
+      const div = document.createElement("div");
+      div.classList.add("chat-item");
+      div.dataset.chatId = chat.id;
+      div.textContent = chat.title || "Untitled Chat";
+
+      div.addEventListener("click", () => loadChatIntoContainer(chat.id));
+
+      chatHistoryList.appendChild(div);
+    });
+
+  } catch (err) {
+    console.error("❌ Error loading chats:", err);
     chatHistoryList.innerHTML =
-      "<p style='padding:10px;color:gray;'>No conversations yet</p>";
-    return;
+      "<p style='color:red;'>Failed to load chats</p>";
+  } finally {
+    hideLoader();
   }
-
-  chats.forEach((chat) => {
-    const div = document.createElement("div");
-    div.classList.add("chat-item");
-    div.dataset.chatId = chat.id;
-    div.textContent = chat.title || "Untitled Chat";
-
-    div.addEventListener("click", () => loadChatIntoContainer(chat.id));
-
-    chatHistoryList.appendChild(div);
-  });
 }
 
 function renderDetectBubbleFromHistory(rawContent, chatContainer) {
@@ -429,94 +498,88 @@ async function loadChatIntoContainer(chatId) {
     return;
   }
 
-  // ✅ Mark as NOT a new conversation (prevents creating new chat doc on next save)
-  window.isNewConversation = false;
+  showLoader("Loading conversation...");
 
-  // ✅ Store current chat ID globally (UI pointer)
-  window.currentChatId = chatId;
-
-  // ✅ Keep in sessionStorage if you use it elsewhere (optional)
-  sessionStorage.setItem("currentChatId", chatId);
-
-  // Update URL (shareable) without reloading
-  const newUrl = `${window.location.origin}${window.location.pathname}?chat=${encodeURIComponent(chatId)}`;
-  window.history.pushState({ chatId }, "", newUrl);
-
-  // ✅ Sync firebase-history.js internal pointer so saveChatToHistory appends to this chat
-  // You must add `setCurrentChatDocId()` export in firebase-history.js (see step 2 below)
   try {
-    if (typeof setCurrentChatDocId === "function") setCurrentChatDocId(chatId);
-  } catch (e) {
-    console.warn("⚠️ Could not sync currentChatDocId in firebase-history.js:", e);
-  }
+    // mark state
+    window.isNewConversation = false;
+    window.currentChatId = chatId;
+    sessionStorage.setItem("currentChatId", chatId);
 
-  // Fetch chat data
-  let chatData;
-  try {
-    chatData = await getChatById(userUID, chatId);
-  } catch (err) {
-    console.error("Error fetching chat:", err);
-    return;
-  }
+    // update URL (no reload)
+    const newUrl = `${window.location.origin}${window.location.pathname}?chat=${encodeURIComponent(chatId)}`;
+    window.history.pushState({ chatId }, "", newUrl);
 
-  if (!chatData) {
-    console.warn("Chat not found:", chatId);
-    return;
-  }
-
-  const chatContainer = document.getElementById("chat-container");
-  if (!chatContainer) {
-    console.error("❌ chat-container element not found");
-    return;
-  }
-
-  // Clear UI + local memory
-  chatContainer.innerHTML = "";
-
-  if (window.currentChatMessages && Array.isArray(window.currentChatMessages)) {
-    window.currentChatMessages.length = 0;
-  } else {
-    window.currentChatMessages = [];
-  }
-
-  // Render messages (with mode styling if present)
-// Render messages (with mode styling if present)
-  (chatData.messages || []).forEach((msg) => {
-    const sender = msg.role === "user" ? "user" : "ai";
-    const type = msg.metadata?.type || msg.mode || "chat";
-
-    if (sender === "ai" && type === "detect") {
-      renderDetectBubbleFromHistory(msg.content, chatContainer);
-    } else if (sender === "ai" && type === "humanize") {
-      renderHumanizeBubbleFromHistory(msg.content, chatContainer);
-    } else {
-      let bubble;
-      if (typeof window.createBubble === "function") {
-        bubble = window.createBubble(msg.content, sender);
-      } else if (typeof createBubble === "function") {
-        bubble = createBubble(msg.content, sender);
-      } else {
-        const p = document.createElement("div");
-        p.textContent = `${msg.role}: ${msg.content}`;
-        chatContainer.appendChild(p);
-        bubble = null;
-      }
-      if (bubble && msg.metadata?.systemMessage) {
-        bubble.classList.add("system-message");
-      }
+    // sync firebase pointer safely
+    if (typeof setCurrentChatDocId === "function") {
+      setCurrentChatDocId(chatId);
     }
 
-    window.currentChatMessages.push({
-      sender,
-      text: msg.content,
-      timestamp: msg.timestamp || new Date().toISOString(),
-      mode: msg.mode || "chat",
-      metadata: msg.metadata || {},
-    });
-  });
+    // fetch chat
+    const chatData = await getChatById(userUID, chatId);
 
-  // scroll to bottom
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+    if (!chatData) {
+      console.warn("⚠️ Chat not found:", chatId);
+      return;
+    }
+
+    const chatContainer = document.getElementById("chat-container");
+    if (!chatContainer) {
+      console.error("❌ chat-container not found");
+      return;
+    }
+
+    // reset UI state
+    chatContainer.innerHTML = "";
+
+    window.currentChatMessages = [];
+
+    // render messages
+    (chatData.messages || []).forEach((msg) => {
+      const sender = msg.role === "user" ? "user" : "ai";
+      const type = msg.metadata?.type || msg.mode || "chat";
+
+      if (sender === "ai" && type === "detect") {
+        renderDetectBubbleFromHistory(msg.content, chatContainer);
+
+      } else if (sender === "ai" && type === "humanize") {
+        renderHumanizeBubbleFromHistory(msg.content, chatContainer);
+
+      } else {
+        let bubble = null;
+
+        if (typeof window.createBubble === "function") {
+          bubble = window.createBubble(msg.content, sender);
+        } else if (typeof createBubble === "function") {
+          bubble = createBubble(msg.content, sender);
+        } else {
+          const fallback = document.createElement("div");
+          fallback.textContent = `${sender}: ${msg.content}`;
+          chatContainer.appendChild(fallback);
+        }
+
+        if (bubble && msg.metadata?.systemMessage) {
+          bubble.classList.add("system-message");
+        }
+      }
+
+      window.currentChatMessages.push({
+        sender,
+        text: msg.content,
+        timestamp: msg.timestamp || new Date().toISOString(),
+        mode: msg.mode || "chat",
+        metadata: msg.metadata || {},
+      });
+    });
+
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  } catch (err) {
+    console.error("❌ Error loading chat:", err);
+
+  } finally {
+    hideLoader();
+  }
 }
 
 window.loadChatIntoContainer = loadChatIntoContainer;
@@ -625,75 +688,83 @@ const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 
 if (historyBtn && chatHistoryModal && closeHistoryBtn && chatHistoryListModal) {
   // Open Modal
-  historyBtn.addEventListener('click', async () => {
-    chatHistoryModal.classList.add('active');
+historyBtn.addEventListener('click', async () => {
+  chatHistoryModal.classList.add('active');
 
-    // Clear old list before refetching
-    chatHistoryListModal.innerHTML = "<p style='color:gray;'>Loading...</p>";
+  chatHistoryListModal.innerHTML = "<p style='color:gray;'>Loading...</p>";
 
-    // Fetch user UID
-    const userUID = sessionStorage.getItem('userUID');
-    if (!userUID) {
-      chatHistoryListModal.innerHTML = "<p style='color:red;'>User not found.</p>";
+  const userUID = sessionStorage.getItem('userUID');
+  if (!userUID) {
+    chatHistoryListModal.innerHTML = "<p style='color:red;'>User not found.</p>";
+    return;
+  }
+
+  showLoader("Fetching your chats...");
+
+  try {
+    const chats = await getAllChats(userUID);
+
+    chatHistoryListModal.innerHTML = "";
+
+    if (!chats || chats.length === 0) {
+      chatHistoryListModal.innerHTML =
+        "<p style='color:gray;'>No conversations yet.</p>";
       return;
     }
 
-    try {
-      // 🔥 Fetch chat history dynamically from Firestore
-      const chats = await getAllChats(userUID);
-      chatHistoryListModal.innerHTML = '';
+    chats.forEach(chat => {
+      const div = document.createElement('div');
+      div.classList.add('history-modal-item');
 
-      if (!chats || chats.length === 0) {
-        chatHistoryListModal.innerHTML = "<p style='color:gray;'>No conversations yet.</p>";
-        return;
+      const titleSpan = document.createElement("span");
+      titleSpan.textContent = chat.title || "Untitled Chat";
+      div.appendChild(titleSpan);
+
+      div.dataset.id = chat.id;
+
+      const currentChatId = sessionStorage.getItem('currentChatId');
+      if (chat.id === currentChatId) {
+        div.classList.add('active');
       }
 
-      // Create chat items for modal
-      chats.forEach(chat => {
-        const div = document.createElement('div');
-        div.classList.add('history-modal-item'); // ✅ unique to modal (no conflict)
-        const titleSpan = document.createElement("span");
-titleSpan.textContent = chat.title || "Untitled Chat";
-div.appendChild(titleSpan);
+      // open chat
+      div.addEventListener('click', async () => {
+        await loadChatIntoContainer(chat.id);
+        sessionStorage.setItem('currentChatId', chat.id);
 
-        div.dataset.id = chat.id;
+        document.querySelectorAll('.history-modal-item')
+          .forEach(item => item.classList.remove('active'));
 
-        // Highlight currently open chat (optional)
-        const currentChatId = sessionStorage.getItem('currentChatId');
-        if (chat.id === currentChatId) div.classList.add('active');
+        div.classList.add('active');
 
-        div.addEventListener('click', async () => {
-          await loadChatIntoContainer(chat.id);
-          sessionStorage.setItem('currentChatId', chat.id);
-
-          // Visually mark it active
-          document.querySelectorAll('.history-modal-item').forEach(item => item.classList.remove('active'));
-          div.classList.add('active');
-
-          // Close modal after selection (especially for mobile)
-          chatHistoryModal.classList.remove('active');
-        });
-
-        const deleteBtn = document.createElement("button");
-deleteBtn.innerHTML = "🗑";
-deleteBtn.classList.add("history-delete-btn");
-
-deleteBtn.addEventListener("click", (e) => {
-  e.stopPropagation(); // prevent opening chat
-  chatIdPendingDelete = chat.id;
-  deleteConfirmModal.classList.add("active");
-});
-
-div.appendChild(deleteBtn);
-
-
-        chatHistoryListModal.appendChild(div);
+        chatHistoryModal.classList.remove('active');
       });
-    } catch (err) {
-      console.error('❌ Error loading chat history:', err);
-      chatHistoryListModal.innerHTML = "<p style='color:red;'>Failed to load chats.</p>";
-    }
-  });
+
+      // delete button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.innerHTML = "🗑";
+      deleteBtn.classList.add("history-delete-btn");
+
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        chatIdPendingDelete = chat.id;
+        deleteConfirmModal.classList.add("active");
+      });
+
+      div.appendChild(deleteBtn);
+
+      chatHistoryListModal.appendChild(div);
+    });
+
+  } catch (err) {
+    console.error("❌ Error loading chat history:", err);
+    chatHistoryListModal.innerHTML =
+      "<p style='color:red;'>Failed to load chats.</p>";
+
+  } finally {
+    hideLoader();
+  }
+});
 
   // Close Modal (button)
   closeHistoryBtn.addEventListener('click', () => {
@@ -728,6 +799,7 @@ confirmDeleteBtn.addEventListener("click", async () => {
 
   // Refresh history UI
   historyBtn.click();
+
 });
 
 }
@@ -739,8 +811,6 @@ const searchInput = document.getElementById("searchInput");
 const closeSearchBtn = document.getElementById("closeSearchBtn");
 const chatHistoryList = document.getElementById("chatHistoryList"); // your history container
 
-// Keep a backup of all chats
-let allChats = []; // will populate after fetching chat history
 
 // Initialize search after loading chats
 function initializeSearch(chats) {

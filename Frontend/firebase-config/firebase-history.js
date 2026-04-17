@@ -31,6 +31,31 @@ export function resetCurrentChatDoc() {
   currentChatDocId = null;
 }
 
+export function generateChatTitle(userText = "") {
+  let text = userText.trim().toLowerCase();
+
+  if (!text) return "Conversation";
+
+  text = text.replace(
+    /please|can you|help me|i want|i need|i am|i'm|could you|would you|tell me|explain|show me/gi,
+    ""
+  );
+
+  text = text.trim();
+
+  const words = text.split(/\s+/).filter(Boolean);
+
+  if (words.length < 3) return "Conversation";
+
+  // take meaningful chunk
+  let title = words.slice(0, 6).join(" ");
+
+  // cleanup punctuation
+  title = title.replace(/[^\w\s]/g, "");
+
+  return title.charAt(0).toUpperCase() + title.slice(1);
+}
+
 export async function saveChatToHistory(
   userId,
   userMessage,
@@ -44,18 +69,6 @@ export async function saveChatToHistory(
     const { mode = "chat", metadata = {}, chatId = null } = options;
 
     const historyRef = collection(db, "history", userId, "chats");
-
-    const userText = (userMessage || "").trim();
-    const titleBase =
-      userText.length > 0
-        ? userText
-        : mode === "detect"
-        ? "AI Detection"
-        : mode === "humanize"
-        ? "Humanizer"
-        : "Conversation";
-
-    const title = titleBase.length > 40 ? titleBase.substring(0, 40) + "..." : titleBase;
 
     // ✅ FIX: timestamps inside arrays must NOT be serverTimestamp()
     const now = Date.now();
@@ -77,47 +90,60 @@ export async function saveChatToHistory(
     };
 
     // ✅ Create new doc if forced OR no chatId
-    if (forceNew || !chatId) {
-      const docRef = await addDoc(historyRef, {
-        title,
-        messages: [userEntry, aiEntry],
-        createdAt: serverTimestamp(),  // ✅ top-level ok
-        updatedAt: serverTimestamp(),  // ✅ top-level ok
-        lastMode: mode,
-      });
+if (forceNew || !chatId) {
+  const title = generateChatTitle(userMessage);
 
-      return docRef.id;
-    }
+  const docRef = await addDoc(historyRef, {
+    title,
+    messages: [userEntry, aiEntry],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastMode: mode,
+  });
 
-    // ✅ Ordered + race-safe append using transaction
-    const docRef = doc(db, "history", userId, "chats", chatId);
+  return docRef.id;
+}
 
-    const finalChatId = await runTransaction(db, async (tx) => {
-      const snap = await tx.get(docRef);
+const docRef = doc(db, "history", userId, "chats", chatId);
 
-      // If doc missing, recreate it
-      if (!snap.exists()) {
-        tx.set(docRef, {
-          title,
-          messages: [userEntry, aiEntry],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          lastMode: mode,
-        });
-        return chatId;
-      }
+const finalChatId = await runTransaction(db, async (tx) => {
+  const snap = await tx.get(docRef);
 
-      const data = snap.data();
-      const oldMessages = Array.isArray(data.messages) ? data.messages : [];
-
-      tx.update(docRef, {
-        messages: [...oldMessages, userEntry, aiEntry], // ✅ order preserved
-        updatedAt: serverTimestamp(),                  // ✅ allowed
-        lastMode: mode,
-      });
-
-      return chatId;
+  // If doc missing, recreate it
+  if (!snap.exists()) {
+    tx.set(docRef, {
+      title: generateChatTitle(userMessage),
+      messages: [userEntry, aiEntry],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastMode: mode,
     });
+
+    return chatId;
+  }
+
+  const data = snap.data();
+  const oldMessages = Array.isArray(data.messages) ? data.messages : [];
+
+  const existingTitle = data.title;
+
+const shouldUpdateTitle =
+  !existingTitle ||
+  existingTitle === "Conversation" ||
+  existingTitle.trim().length < 10;
+
+  tx.update(docRef, {
+    messages: [...oldMessages, userEntry, aiEntry],
+    updatedAt: serverTimestamp(),
+    lastMode: mode,
+
+    ...(shouldUpdateTitle && {
+      title: generateChatTitle(userEntry.text)
+    })
+  });
+
+  return chatId;
+});
 
     return finalChatId;
   } catch (err) {
@@ -257,3 +283,4 @@ export async function deleteChatHistory(userUID, chatId) {
     console.error("❌ Failed to delete chat:", err);
   }
 }
+

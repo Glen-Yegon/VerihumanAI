@@ -22,7 +22,7 @@
     <!-- Theme Color -->
     <meta name="theme-color" content="#00246b">
 
-<link rel="stylesheet" href="styles/styles.css">
+<link rel="stylesheet" href="styles/styles.min.css">
 <link rel="stylesheet" href="styles/loading-screen.min.css">
 
 <!-- Preconnect -->
@@ -111,6 +111,10 @@
   html.skip-loader #main-content {
     display: block;
   }
+
+  html.show-loader .app-loader {
+  display: none !important;
+}
 </style>
 
 <body>
@@ -491,13 +495,29 @@ Matrix-style AI Background -->
   </div>
 </div>
 
+<div id="app-loader" class="app-loader">
+  <div class="loader-card">
+    <div class="spinner"></div>
+
+    <h2>Loading your workspace</h2>
+    <p>Please wait while we retrieve your data...</p>
+
+    <!-- ✅ ADD THIS -->
+    <div class="loader-dots">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+
+  </div>
+</div>
 
 
 <script src="scripts/loading-screen.min.js"></script>
-<script type="module" src="scripts/ai.js"></script>
+<script type="module" src="scripts/ai.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 <script defer src="scripts/particles-init.js"></script>
-<script src="scripts/scripts.js" type="module"></script>
+<script src="scripts/scripts.min.js" type="module"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </body>
 </html>

@@ -15,7 +15,8 @@
           "scrollbar-width: thin",
           "overscroll-behavior",
           "-webkit-mask",
-          "overscroll-behavior: contain"
+          "overscroll-behavior: contain",
+          "-webkit-overflow-scrolling"
         ]
       }
     ],

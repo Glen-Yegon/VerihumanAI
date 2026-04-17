@@ -8,7 +8,7 @@ import {
   saveFullChatSession,
   resetCurrentChatDoc,     // ✅ import real one
   setCurrentChatDocId,     // ✅ optional (only if you want sync)
-} from "../firebase-config/firebase-history.min.js";
+} from "../firebase-config/firebase-history.js";
 import {
   ensureUserCredits,
   canUseCredits,
@@ -623,7 +623,6 @@ function createBubble(message = "", sender = "ai", options = {}, attachments = [
 
   return bubble;
 }
-
 function showLoginPromptBubble() {
   // Prevent duplicate prompt
   if (document.querySelector(".login-prompt-bubble")) return;
@@ -631,10 +630,9 @@ function showLoginPromptBubble() {
   const wrapper = document.createElement("div");
   wrapper.className = "chat-wrapper ai login-prompt-bubble";
 
-  // Style: push the bubble below modal
-  wrapper.style.position = "relative"; // relative inside chat container
-  wrapper.style.marginTop = "20px"; // gives space below modal
-  wrapper.style.zIndex = "1"; // make sure it's under the modal
+  wrapper.style.position = "relative";
+  wrapper.style.marginTop = "20px";
+  wrapper.style.zIndex = "1";
 
   const avatar = document.createElement("div");
   avatar.className = "avatar";
@@ -643,21 +641,19 @@ function showLoginPromptBubble() {
   const bubble = document.createElement("div");
   bubble.className = "chat-bubble ai";
 
-  // Main message
   const mainText = document.createElement("div");
   mainText.textContent = "Please sign up or log in to use VeriHuman AI.";
   mainText.style.marginBottom = "6px";
 
-  // Short explanation
   const subText = document.createElement("div");
-  subText.textContent = "VeriHuman AI helps you chat with AI, humanize text, and detect AI-generated content quickly and securely.";
+  subText.textContent =
+    "VeriHuman AI helps you chat with AI, humanize text, and detect AI-generated content quickly and securely.";
   subText.style.fontSize = "0.85em";
   subText.style.color = "#555";
   subText.style.marginBottom = "10px";
 
-  // Button
   const btn = document.createElement("button");
-  btn.textContent = "Continue"; // neutral for all users
+  btn.textContent = "Continue";
   btn.style.padding = "8px 14px";
   btn.style.borderRadius = "8px";
   btn.style.border = "none";
@@ -666,11 +662,9 @@ function showLoginPromptBubble() {
   btn.style.background = "#8ab6f9";
   btn.style.color = "#00246b";
 
-  // Click behavior: open modal, prompt stays
+  // 🔥 UPDATED BEHAVIOR: direct redirect
   btn.addEventListener("click", () => {
-    showAuthModal();
-    // optionally scroll to ensure bubble is visible
-    wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+    window.location.href = "sign.html";
   });
 
   bubble.appendChild(mainText);
@@ -679,7 +673,6 @@ function showLoginPromptBubble() {
   wrapper.appendChild(avatar);
   wrapper.appendChild(bubble);
 
-  // Append to chat container
   chatContainer.appendChild(wrapper);
 
   scrollToBottom();
@@ -1132,7 +1125,7 @@ async function handleSend() {
 window.handleSend = handleSend;
 
 // ------------------------
-// DETECTION MODE (CLEAN UI)
+// DETECTION MODE 
 // ------------------------
 runDetectionBtn.addEventListener("click", async () => {
 const userUID =
@@ -1223,17 +1216,27 @@ const aiBubble = createBubble("", "ai", { scanning: true });
         .slice(0, count);
     }
 
-    // ----------------------------
-    // Extract values from backend
-    // ----------------------------
+
+    // ✅ Extract classification from backend
     const classification = data.document_classification || "UNKNOWN";
 
-    let confidenceScore = 0;
-    if (data.explanation) {
-      const match = data.explanation.match(/Confidence Score:\s*([\d.]+)%/);
-      if (match) confidenceScore = parseFloat(match[1]);
-    }
-    confidenceScore = clamp(confidenceScore, 0, 100);
+        // ----------------------------
+    // Extract values from backend
+    // ----------------------------
+let confidenceScore = 0;
+
+// Primary source (from probabilities)
+if (data.class_probabilities && data.class_probabilities.AI !== undefined) {
+  confidenceScore = Number(data.class_probabilities.AI) * 100;
+}
+
+// 🔥 OVERRIDE with backend-provided percent if available
+if (data.confidence_percent !== undefined && data.confidence_percent !== null) {
+  confidenceScore = Number(data.confidence_percent);
+}
+
+confidenceScore = clamp(confidenceScore, 0, 100);
+
 
     const ts = data.text_stats || {};
     const features = ts?.writing_stats?.features || {};
@@ -1504,101 +1507,124 @@ const savedId = await saveChatToHistory(
 });
 
 
-
-
 // ------------------------
-// HUMANIZER MODE
+// HUMANIZER MODE (FULL FIX)
 // ------------------------
+
+// 🔥 FIX 1: prevent "first click after refresh" bug
+window.addEventListener("load", () => {
+  runHumanizerBtn.disabled = false;
+  runHumanizerBtn.textContent = "Humanize";
+  humanizeInput.disabled = false;
+});
+
 runHumanizerBtn.addEventListener("click", async () => {
-const userUID =
-  sessionStorage.getItem("userUID") ||
-  localStorage.getItem("userUID");
+  if (runHumanizerBtn.disabled) return;
 
-if (!userUID) return;
+  const userUID =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
 
-  if (!(await creditGuard())) return;
+  if (!userUID) return;
 
   const text = humanizeInput.value.trim();
   if (!text) return;
+
+  // 🔒 UI state (fast feedback only)
+  runHumanizerBtn.textContent = "Processing...";
+  runHumanizerBtn.disabled = true;
 
   createBubble(text, "user");
   addMessage("user", text);
 
   const aiBubble = createBubble("", "ai", { scanning: true });
+
   humanizeInput.value = "";
-  humanizeInput.disabled = true;
-  runHumanizerBtn.disabled = true;
 
   try {
+    if (!(await creditGuard())) {
+      runHumanizerBtn.textContent = "Humanize";
+      runHumanizerBtn.disabled = false;
+      return;
+    }
+
     const res = await fetch(`${API_BASE}/api/humanize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
 
-    if (!res.ok) {
-  throw new Error("Server error");
-}
+    if (!res.ok) throw new Error("Server error");
 
-const data = await res.json();
+    const data = await res.json();
+
+    // ------------------------
+    // ⚡ AI RESPONSE RENDER
+    // ------------------------
     aiBubble.classList.remove("scanning");
     aiBubble.classList.add("humanizer-ai");
 
-aiBubble.innerHTML = renderAIMessageToHTML(data.humanized_text);
-addCopyButton(aiBubble);
+    aiBubble.innerHTML = renderAIMessageToHTML(data.humanized_text);
+    addCopyButton(aiBubble);
 
     addMessage("ai", data.humanized_text);
 
-    // ✅ Consume credit only after successful reply
-    await consumeCredit(userUID);
+    // 🔥 FIX 2: RESET UI IMMEDIATELY AFTER RESPONSE
+    runHumanizerBtn.textContent = "Humanize";
+    runHumanizerBtn.disabled = false;
+    humanizeInput.disabled = false;
+    humanizeInput.focus();
 
-const savedId = await saveChatToHistory(
-  userUID,
-  text,
-  data.humanized_text,
-  window.isNewConversation,
-  {
-    mode: "humanize",
-    metadata: { model: "humanizer-model", type: "humanize" },
-    chatId: window.currentChatId,
-  }
-);
+    scrollToBottom();
 
-if (savedId) {
-  window.currentChatId = savedId;
-  sessionStorage.setItem("currentChatId", savedId);
-  window.isNewConversation = false;
-}
+    // ------------------------
+    // 🔥 BACKGROUND TASKS (NON-BLOCKING)
+    // ------------------------
+    consumeCredit(userUID);
 
-if (savedId) window.currentChatId = savedId;
-isNewConversation = false;
+    saveChatToHistory(
+      userUID,
+      text,
+      data.humanized_text,
+      window.isNewConversation,
+      {
+        mode: "humanize",
+        metadata: {
+          model: "humanizer-model",
+          type: "humanize",
+        },
+        chatId: window.currentChatId,
+      }
+    ).then((savedId) => {
+      if (savedId) {
+        window.currentChatId = savedId;
+        sessionStorage.setItem("currentChatId", savedId);
+        window.isNewConversation = false;
+      }
+    });
 
-    humanizerUI.classList.remove("hidden");
-    if (!chatContainer.contains(humanizerUI)) {
-      chatContainer.appendChild(humanizerUI);
-    }
+    getCreditInfo(userUID).then((creditInfo) => {
+      if (
+        creditInfo.maxCredits !== "unlimited" &&
+        creditInfo.usedCredits >= creditInfo.maxCredits
+      ) {
+        showCreditsModal();
+        disableAllInputs();
+      }
+    });
 
-    const creditInfo = await getCreditInfo(userUID);
-    if (
-      creditInfo.maxCredits !== "unlimited" &&
-      creditInfo.usedCredits >= creditInfo.maxCredits
-    ) {
-      showCreditsModal();
-      disableAllInputs();
-    }
+    window.isNewConversation = false;
 
   } catch (err) {
     console.error("❌ Humanizer error:", err);
     aiBubble.textContent = "Humanizer failed. Try again.";
   } finally {
-    humanizeInput.disabled = false;
+    // 🔥 safety fallback only (never main logic)
+    runHumanizerBtn.textContent = "Humanize";
     runHumanizerBtn.disabled = false;
-    humanizeInput.focus();
-    scrollToBottom();
+    humanizeInput.disabled = false;
   }
 });
-
-
 
 
 // ------------------------
@@ -1753,53 +1779,57 @@ latestMessages.forEach((m) => {
 // Start a new chat
 // ------------------------
 async function startNewChat() {
-const userUID =
-  sessionStorage.getItem("userUID") ||
-  localStorage.getItem("userUID");
+  const userUID =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
 
-  // ✅ Save session snapshot (optional feature you already had)
+  // 🚀 FIRE AND FORGET (no waiting)
   if (userUID && Array.isArray(currentChatMessages) && currentChatMessages.length > 0) {
-    await saveFullChatSession(userUID, currentChatMessages);
+    saveFullChatSession(userUID, currentChatMessages)
+      .catch(err => console.warn("Chat save failed:", err));
   }
 
-  // ✅ Reset Firestore pointer in firebase-history.js
-  resetCurrentChatDoc(); // sets currentChatDocId = null (internal module state)
+  resetCurrentChatDoc();
 
-  // ✅ Reset UI pointer (THIS is what your app should use everywhere now)
   window.currentChatId = null;
-  // ✅ Clear shareable chat link from URL
-window.history.pushState({}, "", window.location.pathname);
-sessionStorage.removeItem("currentChatId");
+  window.history.pushState({}, "", window.location.pathname);
+  sessionStorage.removeItem("currentChatId");
 
-  // ✅ Reset local UI memory
   chatContainer.innerHTML = "";
   currentChatMessages = [];
-window.isNewConversation = true;
+  window.isNewConversation = true;
 
-  // ✅ Optional: reset current mode to chat (recommended)
   currentMode = "chat";
   localStorage.setItem("verihuman_mode", "chat");
 
-  // Update mode buttons UI
   modeButtons.forEach(btn => {
     btn.classList.toggle("active", btn.dataset.mode === "chat");
   });
 
-  // Update the UI panels (chat input visible, others hidden)
   updateModeUI();
 
-  // Banner
-  const msg = document.createElement("div");
-  msg.className = "new-chat-banner";
-  msg.textContent = "🔹 New Conversation Started 🔹";
-  msg.style.color = "#ffffff";
-  chatContainer.appendChild(msg);
+const msg = document.createElement("div");
+msg.className = "new-chat-banner";
+msg.textContent = "🔹 New Conversation Started 🔹";
+msg.style.cssText = `
+  color: #ffffff;
+  font-weight: 600;
+`;
 
-  // Reset mode inputs
-  if (detectInput) detectInput.value = "";
-  if (humanizeInput) humanizeInput.value = "";
+chatContainer.appendChild(msg);
 
-  scrollToBottom();
+scrollToBottom();
+
+// 👇 auto-remove after a few seconds
+setTimeout(() => {
+  msg.style.transition = "opacity 0.4s ease";
+  msg.style.opacity = "0";
+
+  setTimeout(() => {
+    msg.remove();
+  }, 400);
+}, 2500); // ⏱ visible for 2.5 seconds
+
 }
 
 
