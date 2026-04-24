@@ -118,7 +118,7 @@ You are an advanced human writing simulator trained to replicate authentic human
 Rewrite the text between triple quotes so it reads as if written naturally by a thoughtful human.
 
 Core Constraints:
-Preserve the exact meaning, do not add new information, do not remove key information, and keep the length roughly similar, within about 10 percent.
+Preserve the exact meaning, do not add new information, do not remove key information, and keep the length roughly similar, within about 15 percent — aim to match the original word count as closely as possible. Do not pad or expand unnecessarily.
 
 Human Cognitive Simulation:
 Vary sentence length organically, mixing shorter and longer sentences, avoid evenly structured or symmetrical patterns, break predictable rhythm and formulaic transitions, allow subtle phrasing shifts that reflect natural human thought flow, and ensure the writing feels like someone is thinking through the idea rather than presenting it perfectly. It is acceptable to briefly circle back to a point or slightly reconsider it.
@@ -224,10 +224,12 @@ not no nor very can could should would may might must will just
 
 _AI_TRANSITIONS = {
     "however", "therefore", "moreover", "additionally", "furthermore",
-    "consequently", "overall", "thus", "meanwhile", "instead", "similarly",
-    "nevertheless", "nonetheless", "in conclusion", "in summary",
-    "for example", "for instance", "as a result", "on the other hand",
-    "it is important to note", "in contrast", "in addition"
+    "consequently", "thus", "nevertheless", "nonetheless",
+    "in conclusion", "in summary", "as a result", "on the other hand",
+    "it is important to note", "in contrast", "in addition",
+    "it is worth noting", "it can be argued", "plays a crucial role",
+    "it is important to", "this highlights", "this demonstrates",
+    "in today's world", "in today's society"
 }
 
 _CONTRACTIONS = {
@@ -782,12 +784,144 @@ def sentence_drift_score(sentences):
     return 1.0 - _mean(overlaps) if overlaps else 0.0
 
 
-def extract_detector_features(text: str) -> Dict[str, float]:
+# ---- Language detection + signal translation cache ----
+_LANG_SIGNAL_CACHE: Dict[str, Dict] = {}  # cache per language code
+
+async def detect_language_and_translate_signals(text: str) -> Dict:
+    # Fast-path: detect English cheaply without an API call first
+    # Sample the first 200 chars — if it's mostly ASCII letters, assume English
+    sample = (text or "")[:200]
+    ascii_letters = sum(1 for c in sample if c.isascii() and c.isalpha())
+    total_letters = sum(1 for c in sample if c.isalpha())
+    if total_letters > 0 and (ascii_letters / total_letters) >= 0.90:
+        return {"is_english": True, "code": "en", "language": "English"}
+
+    # Only call GPT for genuinely non-ASCII or ambiguous text
+    try:
+        lang_resp = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4.1",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Detect the language of the text. "
+                        "Reply with ONLY a JSON object: "
+                        '{"language": "<full language name>", "code": "<ISO 639-1 code>", "is_english": <true|false>}'
+                        " No markdown, no explanation."
+                    ),
+                },
+                {"role": "user", "content": text[:500]},  # only need a sample
+            ],
+            temperature=0.0,
+            max_tokens=60,
+        )
+        raw = (lang_resp.choices[0].message.content or "").strip()
+        raw = re.sub(r"```json|```", "", raw).strip()
+        lang_data = json.loads(raw)
+    except Exception:
+        # If detection fails, assume English and continue normally
+        return {"is_english": True, "code": "en", "language": "English"}
+
+    if lang_data.get("is_english", True):
+        return {"is_english": True, "code": "en", "language": "English"}
+
+    lang_code = lang_data.get("code", "unknown")
+    lang_name = lang_data.get("language", "Unknown")
+
+    # Return from cache if already translated for this language
+    if lang_code in _LANG_SIGNAL_CACHE:
+        cached = _LANG_SIGNAL_CACHE[lang_code].copy()
+        cached["is_english"] = False
+        return cached
+
+    # Ask GPT to translate all our signal sets into the detected language
+    translation_prompt = f"""
+Translate the following English linguistic signal sets into {lang_name}.
+These are used for AI text detection. Translate each phrase/word naturally — 
+how a native {lang_name} speaker would write them, not literal word-for-word translation.
+
+Return ONLY valid JSON, no markdown, no explanation:
+
+{{
+  "stopwords": ["translated", "common", "function", "words", "list", "of", "about", "30"],
+  "ai_transitions": ["however", "therefore", "moreover", "additionally", "furthermore", 
+                     "consequently", "overall", "thus", "meanwhile", "nevertheless",
+                     "in conclusion", "in summary", "for example", "as a result",
+                     "on the other hand", "it is important to note", "in addition"],
+  "generic_phrases": ["in today's world", "it is important to note", "plays a crucial role",
+                      "has become increasingly", "a wide range of", "various factors"],
+  "formal_words": ["therefore", "however", "moreover", "thus", "additionally"],
+  "informal_words": ["well", "honestly", "you know", "kind of"],
+  "hedge_words": ["may", "might", "could", "suggests", "appears", "likely"],
+  "contractions": [],
+  "first_person_specific": ["i remember", "i was", "i saw", "i went", "i told", "i asked", "i realized"],
+  "self_ref_phrases": ["i think", "i believe", "in my view", "from my perspective",
+                       "personally", "i feel", "i would say"],
+  "tone_markers": ["honestly", "well", "anyway", "that said", "which is interesting"]
+}}
+
+Note: for "contractions", provide common {lang_name} contracted forms if they exist.
+If contractions don't exist in {lang_name}, return an empty list.
+"""
+
+    try:
+        trans_resp = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4.1",
+            messages=[
+                {"role": "user", "content": translation_prompt},
+            ],
+            temperature=0.1,
+            max_tokens=1200,
+        )
+        raw2 = (trans_resp.choices[0].message.content or "").strip()
+        raw2 = re.sub(r"```json|```", "", raw2).strip()
+        translated = json.loads(raw2)
+    except Exception:
+        # Translation failed — fall back to English signals
+        return {"is_english": True, "code": "en", "language": "English", "fallback": True}
+
+    result = {
+        "is_english": False,
+        "code": lang_code,
+        "language": lang_name,
+        "stopwords": set(translated.get("stopwords", [])),
+        "ai_transitions": set(translated.get("ai_transitions", [])),
+        "generic_phrases": set(translated.get("generic_phrases", [])),
+        "formal_words": set(translated.get("formal_words", [])),
+        "informal_words": set(translated.get("informal_words", [])),
+        "hedge_words": set(translated.get("hedge_words", [])),
+        "contractions": set(translated.get("contractions", [])),
+        "first_person_specific": set(translated.get("first_person_specific", [])),
+        "self_ref_phrases": set(translated.get("self_ref_phrases", [])),
+        "tone_markers": set(translated.get("tone_markers", [])),
+    }
+
+    # Cache it so we don't re-translate for every request in this language
+    _LANG_SIGNAL_CACHE[lang_code] = result
+    return result
+
+def calibrate_probability(p: float) -> float:
+    """
+    Calibration curve (S-curve transformation).
+    Converts raw detector score into more realistic probability.
+    """
+    # prevent math overflow safety
+    p = max(0.0, min(p, 1.0))
+
+    # sigmoid calibration (steepness = 8)
+    calibrated = 1 / (1 + math.exp(-8 * (p - 0.5)))
+
+    return max(0.0, min(calibrated, 1.0))
+
+def extract_detector_features(text: str, lang_signals: Dict = None) -> Dict[str, float]:
     """
     Style-focused detector features.
     Tries to capture HOW text is written rather than WHAT it is about.
     """
     raw = (text or "").strip()
+
     if not raw:
         return {
             "n_chars": 0.0,
@@ -795,6 +929,12 @@ def extract_detector_features(text: str) -> Dict[str, float]:
             "n_sents": 0.0,
             "n_paras": 0.0,
         }
+
+    # --- Structured document detection ---
+    has_bullets = bool(re.search(r'^\s*[-*•]\s+', raw, re.MULTILINE))
+    has_numbered = bool(re.search(r'^\s*\d+[\.\)]\s+', raw, re.MULTILINE))
+    has_headings = bool(re.search(r'^\s*#{1,4}\s+', raw, re.MULTILINE))
+    is_structured_doc = float(has_bullets or has_numbered or has_headings)
 
     sents = _simple_sentence_split(raw)
     paras = _paragraph_split(raw)
@@ -808,8 +948,14 @@ def extract_detector_features(text: str) -> Dict[str, float]:
 
     sent_word_lens = [len(_tokenize_words(s)) for s in sents] or [n_words]
     para_word_lens = [len(_tokenize_words(p)) for p in paras] or [n_words]
-    
-    # --- paragraph-level variance (NEW) ---
+    word_lens = [len(w) for w in words] or [0]
+
+    # avg_sent_len MUST be computed before para_sent_lens (used as its fallback)
+    avg_sent_len = _mean(sent_word_lens)
+    std_sent_len = _std(sent_word_lens)
+    burstiness = _safe_div(std_sent_len, avg_sent_len + 1e-6)
+
+    # --- paragraph-level variance ---
     para_sent_lens = [
         _mean([len(_tokenize_words(s)) for s in _simple_sentence_split(p)])
         for p in paras
@@ -817,12 +963,6 @@ def extract_detector_features(text: str) -> Dict[str, float]:
 
     para_variance = _std(para_sent_lens)
     para_uniformity = 1.0 - min(para_variance / 10.0, 1.0)
-
-    word_lens = [len(w) for w in words] or [0]
-
-    avg_sent_len = _mean(sent_word_lens)
-    std_sent_len = _std(sent_word_lens)
-    burstiness = _safe_div(std_sent_len, avg_sent_len + 1e-6)
 
     avg_para_len = _mean(para_word_lens)
     std_para_len = _std(para_word_lens)
@@ -833,39 +973,41 @@ def extract_detector_features(text: str) -> Dict[str, float]:
     uniq_words = len(set(words))
     ttr = _safe_div(uniq_words, n_words + 1e-6)
 
-    stop_count = sum(1 for w in words if w in _BASIC_STOPWORDS)
+    _stopwords = lang_signals.get("stopwords", _BASIC_STOPWORDS) if lang_signals else _BASIC_STOPWORDS
+    stop_count = sum(1 for w in words if w in _stopwords)
     stop_ratio = _safe_div(stop_count, n_words + 1e-6)
 
     long_word_ratio = _safe_div(sum(1 for w in words if len(w) >= 7), n_words + 1e-6)
     short_word_ratio = _safe_div(sum(1 for w in words if len(w) <= 3), n_words + 1e-6)
 
-    contraction_count = sum(1 for w in words if w in _CONTRACTIONS)
+    _contractions_set = lang_signals.get("contractions", _CONTRACTIONS) if lang_signals else _CONTRACTIONS
+    contraction_count = sum(1 for w in words if w in _contractions_set)
     contraction_ratio = _safe_div(contraction_count, n_words + 1e-6)
 
     digit_ratio = _safe_div(sum(1 for ch in raw if ch.isdigit()), n_chars + 1e-6)
     uppercase_ratio = _safe_div(sum(1 for ch in raw if ch.isupper()), n_chars + 1e-6)
-    # --- concreteness proxy (NEW) ---
+
+    # --- concreteness proxy ---
     capital_words = sum(1 for w in words if w.istitle())
     number_words = sum(1 for w in words if any(c.isdigit() for c in w))
-
     concreteness_score = _safe_div(capital_words + number_words, n_words + 1e-6)
 
-    # punctuation usage
+    # --- punctuation usage ---
     comma_ratio = _safe_div(raw.count(","), n_chars + 1e-6)
     semi_ratio = _safe_div(raw.count(";"), n_chars + 1e-6)
     colon_ratio = _safe_div(raw.count(":"), n_chars + 1e-6)
     qmark_ratio = _safe_div(raw.count("?"), n_chars + 1e-6)
     exclam_ratio = _safe_div(raw.count("!"), n_chars + 1e-6)
     quote_ratio = _safe_div(
-        raw.count('"') + raw.count("'") + raw.count("“") + raw.count("”"),
+        raw.count('"') + raw.count("'") + raw.count("\u201c") + raw.count("\u201d"),
         n_chars + 1e-6
     )
     paren_ratio = _safe_div(raw.count("(") + raw.count(")"), n_chars + 1e-6)
-    dash_ratio = _safe_div(raw.count("-") + raw.count("—"), n_chars + 1e-6)
+    dash_ratio = _safe_div(raw.count("-") + raw.count("\u2014"), n_chars + 1e-6)
     newline_ratio = _safe_div(raw.count("\n"), n_chars + 1e-6)
     ellipsis_ratio = _safe_div(raw.count("..."), max(1, n_chars))
 
-    # repetition
+    # --- repetition ---
     bigrams = list(zip(words, words[1:])) if len(words) >= 2 else []
     trigrams = list(zip(words, words[1:], words[2:])) if len(words) >= 3 else []
 
@@ -882,7 +1024,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
     rep_bigram_ratio = _safe_div(repeated_bigrams, len(bigrams) + 1e-6)
     rep_trigram_ratio = _safe_div(repeated_trigrams, len(trigrams) + 1e-6)
 
-    # sentence starter diversity
+    # --- sentence starter diversity ---
     starters = []
     starter2 = []
     for s in sents:
@@ -895,11 +1037,12 @@ def extract_detector_features(text: str) -> Dict[str, float]:
     starter_diversity = _safe_div(len(set(starters)), len(starters) + 1e-6)
     starter2_diversity = _safe_div(len(set(starter2)), len(starter2) + 1e-6)
 
-    # discourse / transition markers
-    transition_hits = _count_phrase_hits(lower_raw, _AI_TRANSITIONS)
+    # --- discourse / transition markers ---
+    _transitions = lang_signals.get("ai_transitions", _AI_TRANSITIONS) if lang_signals else _AI_TRANSITIONS
+    transition_hits = _count_phrase_hits(lower_raw, _transitions)
     transition_ratio = _safe_div(transition_hits, n_sents + 1e-6)
 
-    # adjacent sentence overlap (coherence proxy)
+    # --- adjacent sentence overlap (coherence proxy) ---
     overlaps = []
     for i in range(len(sents) - 1):
         a = _tokenize_words(sents[i])
@@ -909,7 +1052,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
     avg_adj_overlap = _mean(overlaps)
     std_adj_overlap = _std(overlaps)
 
-    # sentence ending variation
+    # --- sentence ending variation ---
     sent_endings = []
     for s in sents:
         s = s.strip()
@@ -924,7 +1067,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
     ending_diversity = _safe_div(len(set(sent_endings)), len(sent_endings) + 1e-6)
     drift_score = sentence_drift_score(sents)
 
-    # readability optional
+    # --- readability (optional) ---
     fk_grade = 0.0
     flesch = 0.0
     if textstat is not None and raw:
@@ -935,60 +1078,65 @@ def extract_detector_features(text: str) -> Dict[str, float]:
             fk_grade = 0.0
             flesch = 0.0
 
-    # entropy proxy
+    # --- entropy proxy ---
     char_entropy_3 = _shannon_entropy_from_char_ngrams(raw, n=3)
 
-    # sentence completeness proxy
+    # --- sentence completeness proxy ---
     complete_sent_ratio = _safe_div(
         sum(1 for s in sents if s.strip().endswith((".", "?", "!"))),
         len(sents) + 1e-6
     )
-    # --- AI fingerprint signals (NEW) ---
+
+    # --- AI fingerprint signals ---
 
     # 1. Formality consistency (AI tends to be overly consistent)
-    formal_words = {"therefore", "however", "moreover", "thus", "additionally"}
-    informal_words = {"well", "honestly", "like", "you know", "kind of"}
+    formal_words = lang_signals.get("formal_words", {"therefore", "however", "moreover", "thus", "additionally"}) if lang_signals else {"therefore", "however", "moreover", "thus", "additionally"}
+    informal_words = lang_signals.get("informal_words", {"well", "honestly", "like", "you know", "kind of"}) if lang_signals else {"well", "honestly", "like", "you know", "kind of"}
 
     formal_count = _count_phrase_hits(lower_raw, formal_words)
     informal_count = _count_phrase_hits(lower_raw, informal_words)
-
     formality_balance = _safe_div(formal_count, informal_count + 1e-6)
 
     # 2. Hedging language (AI often hedges safely)
-    hedge_words = {"may", "might", "could", "suggests", "appears", "likely"}
+    hedge_words = lang_signals.get("hedge_words", {"may", "might", "could", "suggests", "appears", "likely"}) if lang_signals else {"may", "might", "could", "suggests", "appears", "likely"}
     hedge_ratio = _safe_div(
         sum(1 for w in words if w in hedge_words),
         n_words + 1e-6
     )
 
-    self_ref_words = {
+    # 3. Self-referential phrases
+    self_ref_words = lang_signals.get("self_ref_phrases", {
+        "i think", "i believe", "in my view", "from my perspective",
+        "personally", "i feel", "i would say"
+    }) if lang_signals else {
         "i think", "i believe", "in my view", "from my perspective",
         "personally", "i feel", "i would say"
     }
-
     self_ref_hits = _count_phrase_hits(lower_raw, self_ref_words)
     self_ref_ratio = _safe_div(self_ref_hits, n_sents + 1e-6)
 
-    # 3. Generic phrasing (very strong AI signal)
-    generic_phrases = {
+    # 4. Generic phrasing (very strong AI signal)
+    generic_phrases = lang_signals.get("generic_phrases", {
+        "in today's world", "it is important to note", "plays a crucial role",
+        "has become increasingly", "a wide range of", "various factors"
+    }) if lang_signals else {
         "in today's world", "it is important to note", "plays a crucial role",
         "has become increasingly", "a wide range of", "various factors"
     }
     generic_hits = _count_phrase_hits(lower_raw, generic_phrases)
     generic_ratio = _safe_div(generic_hits, n_sents + 1e-6)
 
-    # 4. Sentence symmetry (AI tends to balance sentence lengths)
+    # 5. Sentence symmetry (AI tends to balance sentence lengths)
     sent_len_diff = [
-        abs(sent_word_lens[i] - sent_word_lens[i-1])
+        abs(sent_word_lens[i] - sent_word_lens[i - 1])
         for i in range(1, len(sent_word_lens))
     ] if len(sent_word_lens) > 1 else [0.0]
-
     symmetry_score = 1.0 - min(_mean(sent_len_diff) / 20.0, 1.0)
 
-    # 5. Over-coherence (AI flows too smoothly)
+    # 6. Over-coherence (AI flows too smoothly)
     over_coherence = 1.0 - min(avg_adj_overlap / 0.8, 1.0)
-    
-    # --- Adversarial / humanizer-detection signals (NEW) ---
+
+    # --- Adversarial / humanizer-detection signals ---
 
     # 1. Fake burstiness (variation that is TOO controlled)
     burstiness_variation = _std(sent_word_lens)
@@ -999,14 +1147,17 @@ def extract_detector_features(text: str) -> Dict[str, float]:
     chunk_size = max(50, int(len(raw) / 5))
     entropy_chunks = []
     for i in range(0, len(raw), chunk_size):
-        chunk = raw[i:i+chunk_size]
+        chunk = raw[i:i + chunk_size]
         entropy_chunks.append(_shannon_entropy_from_char_ngrams(chunk, n=3))
 
     entropy_std = _std(entropy_chunks)
     entropy_uniformity = 1.0 - min(entropy_std / 1.5, 1.0)
 
     # 3. Sudden tone shifts (AI fake drift)
-    tone_markers = [
+    tone_markers = list(lang_signals.get("tone_markers", {
+        "honestly", "well", "anyway", "that said", "come to think of it",
+        "now that I think about it", "which is interesting"
+    })) if lang_signals else [
         "honestly", "well", "anyway", "that said", "come to think of it",
         "now that I think about it", "which is interesting"
     ]
@@ -1015,7 +1166,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
 
     # 4. Sentence rhythm irregularity (human is messy, AI is patterned)
     sentence_diffs = [
-        sent_word_lens[i] - sent_word_lens[i-1]
+        sent_word_lens[i] - sent_word_lens[i - 1]
         for i in range(1, len(sent_word_lens))
     ] if len(sent_word_lens) > 1 else [0.0]
 
@@ -1029,13 +1180,29 @@ def extract_detector_features(text: str) -> Dict[str, float]:
 
     if len(short_sent_positions) > 1:
         spacing = [
-            short_sent_positions[i] - short_sent_positions[i-1]
+            short_sent_positions[i] - short_sent_positions[i - 1]
             for i in range(1, len(short_sent_positions))
         ]
         imperfection_pattern = 1.0 - min(_std(spacing) / 5.0, 1.0)
     else:
         imperfection_pattern = 0.0
 
+    # --- Personal voice + named entity signals ---
+    first_person_specific = lang_signals.get("first_person_specific", {
+        "i remember", "i was", "i saw", "i went", "i told", "i asked", "i realized"
+    }) if lang_signals else {
+        "i remember", "i was", "i saw", "i went", "i told", "i asked", "i realized"
+    }
+    first_person_hits = _count_phrase_hits(lower_raw, first_person_specific)
+    personal_voice_ratio = _safe_div(first_person_hits, n_sents + 1e-6)
+
+    mid_sentence_caps = sum(
+        1
+        for s in sents
+        for j, w in enumerate(_tokenize_words(s))
+        if j > 0 and len(w) > 0 and w[0].isupper()
+    )
+    named_entity_density = _safe_div(mid_sentence_caps, n_words + 1e-6)
 
     return {
         # size
@@ -1092,15 +1259,17 @@ def extract_detector_features(text: str) -> Dict[str, float]:
         "char_entropy_3": float(char_entropy_3),
         "fk_grade": float(fk_grade),
         "flesch": float(flesch),
-        
-        # --- AI fingerprint features ---
+        "personal_voice_ratio": float(personal_voice_ratio),
+        "named_entity_density": float(named_entity_density),
+
+        # AI fingerprint features
         "formality_balance": float(formality_balance),
         "hedge_ratio": float(hedge_ratio),
         "generic_ratio": float(generic_ratio),
         "symmetry_score": float(symmetry_score),
         "over_coherence": float(over_coherence),
-        
-        # --- adversarial features ---
+
+        # adversarial features
         "burstiness_consistency": float(burstiness_consistency),
         "entropy_uniformity": float(entropy_uniformity),
         "tone_shift_ratio": float(tone_shift_ratio),
@@ -1109,6 +1278,7 @@ def extract_detector_features(text: str) -> Dict[str, float]:
         "self_ref_ratio": float(self_ref_ratio),
         "concreteness_score": float(concreteness_score),
         "sentence_drift": float(drift_score),
+        "is_structured_doc": float(is_structured_doc),
     }
     
 def looks_ai_like(f):
@@ -1129,12 +1299,40 @@ def apply_contractions(text: str) -> str:
 
 
 def apply_human_postprocessing(text: str) -> str:
+    
+    # ---- Detect and preserve structured formatting ----
+    has_bullets = bool(re.search(r'^\s*[-*•]\s+', text, re.MULTILINE))
+    has_numbered = bool(re.search(r'^\s*\d+[\.\)]\s+', text, re.MULTILINE))
+    has_headings = bool(re.search(r'^\s*#{1,4}\s+', text, re.MULTILINE))
+    is_structured = has_bullets or has_numbered or has_headings
+
+    # If the text is structured (lists, headings), skip sentence-level
+    # post-processing entirely — it breaks list formatting
+    if is_structured:
+        return text
+    
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
 
     if len(sentences) < 2:
         return text
 
-    features = extract_detector_features(text)
+    # Use lightweight inline checks instead of full feature extraction
+    words_list = text.split()
+    n_words_local = max(len(words_list), 1)
+    sents_local = re.split(r'(?<=[.!?])\s+', text.strip())
+    sent_lens_local = [len(s.split()) for s in sents_local] if sents_local else [n_words_local]
+    avg_len_local = sum(sent_lens_local) / max(len(sent_lens_local), 1)
+    std_len_local = (sum((x - avg_len_local)**2 for x in sent_lens_local) / max(len(sent_lens_local), 1)) ** 0.5
+    burstiness_local = std_len_local / (avg_len_local + 1e-6)
+
+    # Simulate the features dict with just what post-processing needs
+    features = {
+        "burstiness": burstiness_local,
+        "avg_sent_len": avg_len_local,
+        "avg_adj_overlap": 0.3,  # neutral default — GPT already handled this
+        "contraction_ratio": sum(1 for w in words_list if "'" in w) / n_words_local,
+        "complete_sent_ratio": sum(1 for s in sents_local if s.strip().endswith((".", "?", "!"))) / max(len(sents_local), 1),
+    }
 
     # ---- 1. Adaptive sentence merging (based on burstiness) ----
     if features.get("burstiness", 1) < 0.45:
@@ -1167,7 +1365,7 @@ def apply_human_postprocessing(text: str) -> str:
         "Maybe that's just one way to see it."
     ]
 
-    if features.get("avg_adj_overlap", 0) > 0.5 or random.random() < 0.4:
+    if features.get("avg_adj_overlap", 0) > 0.5 or random.random() < 0.15:
         i = random.randint(0, len(sentences) - 1)
         sentences[i] = sentences[i].rstrip(".") + ". " + random.choice(drift_phrases)
 
@@ -1281,51 +1479,54 @@ def ml_ai_probability(text: str) -> Tuple[Optional[float], Dict[str, float]]:
 
 def heuristic_ai_probability(feats: Dict[str, float]) -> float:
     """
-    Solid baseline when no trained model exists.
-    Produces a probability in [0,1].
+    Calibrated baseline — weights sum to 1.0 before penalties/bonuses.
+    Designed to avoid false positives on human text.
     """
-    # Key signals (tuned to avoid extreme overconfidence)
-    # Lower entropy + lower burstiness + lower TTR + higher repetition -> more AI-like
     score = 0.0
 
-    ent = feats.get("char_entropy_3", 0.0)  # typical range depends on text
-    burst = feats.get("burstiness", 0.0)
-    ttr = feats.get("ttr", 0.0)
-    rep = feats.get("rep_bigram_ratio", 0.0)
-    stop = feats.get("stop_ratio", 0.0)
+    ent     = feats.get("char_entropy_3", 0.0)
+    burst   = feats.get("burstiness", 0.0)
+    ttr     = feats.get("ttr", 0.0)
+    rep     = feats.get("rep_bigram_ratio", 0.0)
+    stop    = feats.get("stop_ratio", 0.0)
     avg_len = feats.get("avg_sent_len", 0.0)
     generic = feats.get("generic_ratio", 0.0)
-    hedge = feats.get("hedge_ratio", 0.0)
-    symmetry = feats.get("symmetry_score", 0.0)
-    over_coh = feats.get("over_coherence", 0.0)
-    burst_cons = feats.get("burstiness_consistency", 0.0)
+    hedge   = feats.get("hedge_ratio", 0.0)
+    symmetry    = feats.get("symmetry_score", 0.0)
+    burst_cons  = feats.get("burstiness_consistency", 0.0)
     entropy_uni = feats.get("entropy_uniformity", 0.0)
-    tone_shift = feats.get("tone_shift_ratio", 0.0)
-    rhythm_uni = feats.get("rhythm_uniformity", 0.0)
-    imperf = feats.get("imperfection_pattern", 0.0)
-    
-    # normalize-ish contributions
-    score += (0.40 * (1.0 - min(ent / 6.0, 1.0)))      # lower entropy => higher AI score
-    score += (0.20 * (1.0 - min(burst / 0.8, 1.0)))    # lower burstiness => higher AI score
-    score += (0.15 * (1.0 - min(ttr / 0.55, 1.0)))     # lower lexical variety => higher AI score
-    score += (0.15 * min(rep / 0.15, 1.0))             # repetition => higher AI score
-    score += (0.05 * min(stop / 0.60, 1.0))            # moderate stopword ratio can correlate with polished AI
-    score += (0.05 * min(avg_len / 22.0, 1.0))         # long uniform sentences slightly push AI score
+    rhythm_uni  = feats.get("rhythm_uniformity", 0.0)
+    imperf      = feats.get("imperfection_pattern", 0.0)
+    personal    = feats.get("personal_voice_ratio", 0.0)
+    named_ent   = feats.get("named_entity_density", 0.0)
 
-    # --- NEW AI fingerprint scoring ---
-    score += (0.10 * min(generic / 0.3, 1.0))     # generic phrasing
-    score += (0.08 * min(hedge / 0.1, 1.0))       # hedging language
-    score += (0.07 * symmetry)                    # sentence balance
-    score += (0.07 * over_coh)                    # overly smooth flow
+    # ── Core signals (weights sum to 0.70) ──────────────────────────────
+    score += 0.22 * (1.0 - min(ent / 6.0,   1.0))   # low entropy  → AI
+    score += 0.14 * (1.0 - min(burst / 0.8, 1.0))   # low burst    → AI
+    score += 0.12 * (1.0 - min(ttr / 0.55,  1.0))   # low vocab    → AI
+    score += 0.10 * min(rep / 0.15,          1.0)   # repetition   → AI
+    score += 0.06 * min(generic / 0.3,       1.0)   # generic      → AI
+    score += 0.06 * min(hedge / 0.1,         1.0)   # hedging      → AI
 
-    # --- adversarial scoring ---
-    score += (0.10 * burst_cons)                  # fake burstiness
-    score += (0.10 * entropy_uni)                # too uniform entropy
-    score += (0.08 * rhythm_uni)                 # patterned rhythm
-    score += (0.07 * imperf)                    # artificial imperfection spacing
-    score += (0.05 * min(tone_shift / 0.3, 1.0))  # injected drift phrases
-    
-    # clamp
+    # ── Style signals (weights sum to 0.18) ─────────────────────────────
+    score += 0.05 * symmetry                         # uniform lengths → AI
+    score += 0.04 * min(stop / 0.60,         1.0)   # stopword density
+    score += 0.04 * min(avg_len / 22.0,      1.0)   # long sentences
+    score += 0.05 * burst_cons                       # fake burstiness
+
+    # ── Adversarial signals (weights sum to 0.12) ────────────────────────
+    score += 0.04 * entropy_uni                      # uniform entropy
+    score += 0.04 * rhythm_uni                       # patterned rhythm
+    score += 0.04 * imperf                           # placed imperfections
+
+    # ── Human voice signals (reduce score) ──────────────────────────────
+    score -= 0.10 * min(personal / 0.08,     1.0)   # personal voice → human
+    score -= 0.06 * min(named_ent / 0.12,    1.0)   # named entities → human
+
+    # ── Structured doc adjustment ────────────────────────────────────────
+    if feats.get("is_structured_doc", 0.0) > 0.0:
+        score *= 0.85  # lists/bullets appear in both — reduce confidence
+
     return float(max(0.0, min(score, 1.0)))
 
 
@@ -1398,6 +1599,8 @@ Analyze the provided text across ALL of these dimensions:
 
 8. PARAGRAPH-LEVEL ANALYSIS — Analyze each paragraph separately. Identify which paragraphs are most AI-like.
 
+9. HUMANIZED AI DETECTION — Some text has been AI-generated then run through a humanizer. Signs include: contractions and short sentences injected artificially, drift phrases like "come to think of it" or "which is interesting actually" inserted mid-paragraph, personal-sounding phrases with no actual personal content, sentence rhythm that alternates between very short and long in a pattern, and generic claims despite surface-level informal tone. This text scores 0.60–0.85.
+
 SENTENCE-LEVEL ANALYSIS:
 For each sentence, estimate a probability (0.0–1.0) that it was AI-generated.
 
@@ -1423,17 +1626,19 @@ Return STRICT valid JSON, nothing else, no markdown, no explanation outside the 
 
 CALIBRATION RULES — follow these strictly:
 
-- Clearly AI-generated text (standard essay style, generic explanations, no personal voice): 0.80–1.0
-- Lightly humanized AI text: 0.65–0.80
-- Mixed (human + AI): 0.40–0.65
-- Mostly human with AI polish: 0.20–0.40
-- Clearly human-written (with quirks, uneven flow, personal voice): 0.0–0.20
+- Clearly AI-generated (generic essay, no personal voice, uniform rhythm, AI transitions): 0.80–0.95
+- Lightly humanized AI (informal surface, but generic claims, no real personal content): 0.60–0.80
+- Genuinely mixed (some AI sections, some clearly human): 0.40–0.60
+- Mostly human with some AI polish or editing: 0.15–0.40
+- Clearly human (personal voice, uneven flow, idiosyncratic phrasing, real specifics): 0.02–0.15
 
 STRICT RULES:
-- If the text is a clean, well-structured essay with generic phrasing and no personal voice, you MUST assign ≥ 0.75
-- Do NOT be conservative
-- Do NOT default to low scores
-- You are a classifier, not a skeptic
+- Do NOT assign > 0.90 unless the text is textbook AI with zero human signals
+- Do NOT assign > 0.75 unless you have at least 3 strong independent AI signals
+- A text that sounds informal or uses contractions is NOT automatically human — check for real specificity
+- A text with good grammar is NOT automatically AI — check for personal voice and real content
+- Be accurate over being decisive. A 0.50 is acceptable when genuinely uncertain.
+- Text under 80 words: set confidence to "low" and pull score toward 0.50
 
 Be decisive. Do not cluster near 0.5 unless genuinely uncertain.
 Text under 80 words: set confidence to "low".
@@ -1603,15 +1808,15 @@ async def gpt_judge_probability(text: str) -> Optional[Dict[str, Any]]:
                     except Exception:
                         pass
 
-            # Final blend: pass 3 is the tiebreaker, gets highest weight
-            final_probability = (p1 * 0.30) + (p2 * 0.50) + (p3 * 0.20)
+            # Pass 1 is the deepest analysis, pass 3 breaks ties
+            final_probability = (p1 * 0.45) + (p2 * 0.30) + (p3 * 0.25)
         else:
             # Passes agree and score is clear — no need for pass 3
             final_probability = blended_so_far
             pass3_reasoning = "Passes 1 & 2 in agreement — no tiebreaker needed."
             # 🔥 Penalize generic structured essays
-        if result2.get("is_generic") and result2.get("transition_word_count", 0) >= 3:
-            final_probability += 0.15
+        if result2.get("is_generic") and result2.get("transition_word_count", 0) >= 5:
+            final_probability = min(final_probability + 0.08, 0.95)
 
         final_probability = max(0.0, min(final_probability, 1.0))
 
@@ -1834,11 +2039,13 @@ class TextStats(BaseModel):
 
 class DetectResponse(BaseModel):
     document: str
-    document_classification: str  # e.g. "AI_ONLY", "HUMAN_ONLY", "MIXED"
+    document_classification: str
     class_probabilities: dict
     explanation: str
     text_stats: TextStats
-    subclass: Optional[dict] = None  # Optional detailed subclass info
+    subclass: Optional[dict] = None
+    uncertainty_score: Optional[float] = None
+    confidence_percent: Optional[float] = None
 
 # ----------------- Endpoint -----------------
 
@@ -1885,52 +2092,97 @@ async def detect(req: DetectRequest):
     # -------------------
     # 3. Heuristic as FALLBACK only (when GPT fails)
     # -------------------
-    feats = extract_detector_features(user_text)
+    lang_signals = await detect_language_and_translate_signals(user_text)
+    feats = extract_detector_features(user_text, lang_signals if not lang_signals.get("is_english") else None)
     heuristic_p = heuristic_ai_probability(feats)
 
+    # ==============================
+    # CORE BLEND (FIXED VERSION)
+    # ==============================
+
     if gpt_p is not None:
-        # dynamic weighting based on agreement
-        agreement = 1.0 - abs(gpt_p - heuristic_p)
-
-        gpt_weight = 0.75 + (0.15 * agreement)
-        heuristic_weight = 1.0 - gpt_weight
-
-        final_p = (gpt_p * gpt_weight) + (heuristic_p * heuristic_weight)
-
+        # GPT is anchor, but MUST NOT dominate
+        base = (gpt_p * 0.50) + (heuristic_p * 0.50)
     else:
-        logger.warning("GPT judge unavailable; using heuristic fallback")
-        final_p = heuristic_p
+        base = heuristic_p
+
+    # ------------------------------
+    # HUMAN CORRECTION LAYER
+    # ------------------------------
+    human_boost = 0.0
+
+    human_boost += 0.15 * feats.get("personal_voice_ratio", 0)
+    human_boost += 0.12 * feats.get("named_entity_density", 0)
+    human_boost += 0.10 * feats.get("burstiness", 0)
+    human_boost += 0.10 * feats.get("imperfection_pattern", 0)
+
+    # IMPORTANT: subtract gently (not aggressively)
+    final_p = base - human_boost * 0.6
 
     final_p = max(0.0, min(final_p, 1.0))
+    
+    # ------------------------------
+    # STABILITY NORMALIZATION (IMPORTANT)
+    # ------------------------------
 
+    if word_count > 120:
+        final_p = (final_p * 0.92) + 0.08 * heuristic_p
+
+    # ------------------------------
+    # HUMAN FLOOR PROTECTION
+    # ------------------------------
+
+    if (
+        feats.get("personal_voice_ratio", 0) > 0.08 and
+        feats.get("burstiness", 0) > 0.30
+    ):
+        final_p = min(final_p, 0.45)
+        
+        
     # -------------------
     # 4. Short text penalty — be less confident on very short texts
     # -------------------
+    # only increase uncertainty, NOT AI bias
     if word_count < 50:
-        # Pull toward 0.5 (uncertain) for very short texts
-        final_p = final_p * 0.6 + 0.5 * 0.4
+        final_p = final_p * 0.85
 
     # -------------------
-    # 5. Classification thresholds
+    # 5. GPT OVERRIDE (BEFORE FINAL SCORING LOCK)
     # -------------------
-    if final_p >= 0.75:
-        classification = "AI_ONLY"
-    elif final_p <= 0.25:
-        classification = "HUMAN_ONLY"
-    else:
-        classification = "MIXED"
 
-    # Override with GPT's own classification if GPT is confident
     if gpt_p is not None and gpt_confidence == "high" and word_count > 80:
         gpt_cls = gpt_result.get("classification", "")
 
         if gpt_cls == "AI_ONLY":
-            final_p = max(final_p, 0.75)
+            final_p = (final_p * 0.7) + (0.75 * 0.3)
+
         elif gpt_cls == "HUMAN_ONLY":
             final_p = min(final_p, 0.25)
 
-        if gpt_cls in ("AI_ONLY", "HUMAN_ONLY", "MIXED"):
-            classification = gpt_cls
+    # -------------------
+    # 6. FINAL CALIBRATION STEP (IMPORTANT)
+    # -------------------
+
+    final_p = max(0.0, min(final_p, 1.0))
+
+    # -------------------
+    # 7. CLASSIFICATION (ONLY AFTER CALIBRATION)
+    # -------------------
+
+    # ==============================
+    # CALIBRATED THRESHOLDS (FIXED)
+    # ==============================
+
+    if final_p >= 0.70:
+        classification = "AI_ONLY"
+    elif final_p <= 0.30:
+        classification = "HUMAN_ONLY"
+    else:
+        classification = "MIXED"
+
+    # -------------------
+    # 8. FINAL PROBABILITIES (STABLE OUTPUT)
+    # -------------------
 
     class_probs = {
         "AI": round(final_p, 4),
@@ -1963,24 +2215,51 @@ async def detect(req: DetectRequest):
                 pass
 
     for s in sents_from_split[:200]:
-        # Try to match GPT's sentence-level score
+
         snippet = s.strip().lower()[:40]
         best_match_prob: Optional[float] = None
 
+        # -------------------
+        # GPT sentence match
+        # -------------------
         for key, val in gpt_sent_lookup.items():
-            # Fuzzy prefix match
             if snippet[:20] in key or key[:20] in snippet:
                 best_match_prob = val
                 break
 
+        # -------------------
+        # fallback sentence heuristic
+        # -------------------
         if best_match_prob is None:
-            # Fall back to document-level probability with small heuristic nudge
-            s_feats = extract_detector_features(s)
-            s_heuristic = heuristic_ai_probability(s_feats)
-            # Blend document-level GPT score with sentence heuristic
-            best_match_prob = (final_p * 0.7) + (s_heuristic * 0.3)
+            s_words = _tokenize_words(s)
+            s_lower = s.lower()
 
+            s_trans = _count_phrase_hits(s_lower, _AI_TRANSITIONS)
+
+            s_generic = _count_phrase_hits(s_lower, {
+                "it is important", "plays a crucial", "has become increasingly",
+                "a wide range", "various factors", "it is worth noting",
+                "this demonstrates", "this highlights"
+            })
+
+            s_len = len(s_words)
+            doc_avg = feats.get("avg_sent_len", s_len)
+            length_uniformity = 1.0 - min(abs(s_len - doc_avg) / max(doc_avg, 1), 1.0)
+
+            personal_words = {"i", "my", "me", "we", "our", "you", "your"}
+            has_personal = any(w in personal_words for w in s_words)
+
+            best_match_prob = (
+                0.35 * min((s_trans + s_generic) / 2.0, 1.0) +
+                0.30 * length_uniformity +
+                0.35 * (0.0 if has_personal else 0.5)
+            )
+
+        # -------------------
+        # FINAL SENTENCE SCORE
+        # -------------------
         s_prob = round(max(0.0, min(best_match_prob, 1.0)), 4)
+
         token_len = len(_tokenize_words(s))
         highlighted = s_prob >= 0.70 and token_len >= 5
 
@@ -2078,6 +2357,10 @@ async def humanize_text(req: HumanizeRequest):
     if len(user_text) > 20000:
         raise HTTPException(status_code=413, detail="Text too long. Please shorten and try again.")
 
+    lang_signals = await detect_language_and_translate_signals(user_text)
+    lang_name = lang_signals.get("language", "English")
+    is_english = lang_signals.get("is_english", True)
+    
     formatted_input = f'"""\n{user_text}\n"""'
 
     # Detect tone + complexity
@@ -2094,21 +2377,31 @@ async def humanize_text(req: HumanizeRequest):
         "Avoid a neat 2–3 sentence balance."
     )
 
+    word_count_original = len(user_text.split())
     restructure_instruction = (
         "\nStructural Flexibility: "
-        "If the text is short or structurally rigid, you may slightly expand it "
-        "using natural phrasing while preserving meaning. "
-        "You may shift perspective or sentence flow if helpful. "
-        "Avoid keeping the same sentence skeleton."
+        "You may restructure sentences, but do NOT expand the text. "
+        f"The original text is approximately {word_count_original} words. "
+        f"Your rewrite MUST stay within {int(word_count_original * 1.15)} words. "
+        "Do not add filler, padding, or extra sentences to reach a target length."
     )
 
     # Full system prompt
+    lang_instruction = ""
+    if not is_english:
+        lang_instruction = (
+            f"\nLanguage: The text is in {lang_name}. "
+            f"Rewrite entirely in {lang_name}. Do not translate to English. "
+            f"Apply all humanization rules as they apply to natural {lang_name} writing patterns."
+        )
+
     sys_prompt = (
         HUMANIZER_SYSTEM_PROMPT
         + tone_instruction
         + complexity_instruction
         + burstiness_instruction
         + restructure_instruction
+        + lang_instruction
     )
 
     try:
@@ -2168,7 +2461,7 @@ async def humanize_text(req: HumanizeRequest):
             rewritten = extract_text_from_response(response3).strip()
 
         # -------- Entropy Injection (NEW 🔥) --------
-        if random.random() < 0.3:
+        if random.random() < 0.05:
             rewritten += "\n\n" + random.choice([
                 "It's not completely straightforward.",
                 "There’s a bit more going on here.",

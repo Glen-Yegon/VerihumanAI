@@ -334,6 +334,9 @@ const humanizerUI = document.getElementById("humanizer-ui");
 const humanizeInput = document.getElementById("humanize-input");
 const runHumanizerBtn = document.getElementById("run-humanizer-btn");
 
+humanizeInput.setAttribute("autocomplete", "off");
+humanizeInput.setAttribute("autocorrect", "off");
+humanizeInput.setAttribute("spellcheck", "false");
 
   // Local store of current conversation
   let currentChatMessages = [];
@@ -427,9 +430,6 @@ if (chatContainer.contains(humanizerUI)) {
   // ---------- HUMANIZER MODE ----------
   if (currentMode === "humanize") {
       // humanizer mode → futuristic purple
-      
-
-
 
     const lastBubble = chatContainer.lastElementChild;
     if (!lastBubble || lastBubble.dataset.modeSwitch !== "humanizer") {
@@ -445,6 +445,12 @@ if (chatContainer.contains(humanizerUI)) {
     if (chatContainer.contains(detectionUI)) {
       chatContainer.removeChild(detectionUI);
     }
+
+    // Prevent paste-disappear bug: defer focus so browser doesn't clear on mode switch
+    setTimeout(() => {
+      humanizeInput.focus();
+      humanizeInput.value = humanizeInput.value; // force cursor to end
+    }, 50);
 
     // Show Humanizer UI
     humanizerUI.classList.remove("hidden");
@@ -582,9 +588,13 @@ function createBubble(message = "", sender = "ai", options = {}, attachments = [
     bubble.classList.add("scanning");
     bubble.innerHTML =
       '<span class="scanning-dots"><span></span><span></span><span></span></span>';
-  } else {
-    // ✅ Message text
-    bubble.textContent = message || "";
+} else {
+    // ✅ Message text — preserve paragraphs, bullets, numbered lists, line breaks
+    if (message) {
+      bubble.style.whiteSpace = "pre-wrap";
+      bubble.style.wordBreak = "break-word";
+      bubble.textContent = message;
+    }
 
     // ✅ Attachments inside bubble (images + file chips)
     if (attachments && attachments.length) {
@@ -1128,25 +1138,29 @@ window.handleSend = handleSend;
 // DETECTION MODE 
 // ------------------------
 runDetectionBtn.addEventListener("click", async () => {
-const userUID =
-  sessionStorage.getItem("userUID") ||
-  localStorage.getItem("userUID");
-
-if (!userUID) return;
-
-  if (!(await creditGuard())) return;
+  const userUID = sessionStorage.getItem("userUID") || localStorage.getItem("userUID");
+  if (!userUID) return;
 
   const text = detectInput.value.trim();
   if (!text) return;
 
+  // ✅ Show bubble INSTANTLY before any async checks
   createBubble(text, "user");
   addMessage("user", text);
 
-const aiBubble = createBubble("", "ai", { scanning: true });
+  const aiBubble = createBubble("", "ai", { scanning: true });
   scrollAsContentGrows(aiBubble);
   detectInput.value = "";
   detectInput.disabled = true;
   runDetectionBtn.disabled = true;
+
+  // Credit check AFTER bubble is shown
+  if (!(await creditGuard())) {
+    aiBubble.remove();
+    detectInput.disabled = false;
+    runDetectionBtn.disabled = false;
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/detect`, {
@@ -1534,15 +1548,17 @@ runHumanizerBtn.addEventListener("click", async () => {
   runHumanizerBtn.textContent = "Processing...";
   runHumanizerBtn.disabled = true;
 
+// ✅ Show bubble INSTANTLY
   createBubble(text, "user");
   addMessage("user", text);
 
   const aiBubble = createBubble("", "ai", { scanning: true });
-
+  scrollAsContentGrows(aiBubble);
   humanizeInput.value = "";
 
   try {
     if (!(await creditGuard())) {
+      aiBubble.remove();
       runHumanizerBtn.textContent = "Humanize";
       runHumanizerBtn.disabled = false;
       return;
