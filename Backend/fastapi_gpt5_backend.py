@@ -7,7 +7,8 @@ from fastapi import UploadFile, File, Form
 from pathlib import Path
 from typing import Optional, Any, Dict, List
 from openai import OpenAI
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Form, File, UploadFile, status
+from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -247,7 +248,8 @@ logger = logging.getLogger("fastapi_gpt5_backend")
 if not OPENAI_API_KEY:
     logger.warning("OPENAI_API_KEY is not set. Set it in your environment or in .env before running.")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+from openai import AsyncOpenAI
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -------------------- FastAPI app --------------------
 app = FastAPI(title="GPT-5 Nano Proxy API", version="0.1")
@@ -798,8 +800,7 @@ async def detect_language_and_translate_signals(text: str) -> Dict:
 
     # Only call GPT for genuinely non-ASCII or ambiguous text
     try:
-        lang_resp = await asyncio.to_thread(
-            client.chat.completions.create,
+        lang_resp = await client.chat.completions.create(
             model="gpt-4.1",
             messages=[
                 {
@@ -866,8 +867,7 @@ If contractions don't exist in {lang_name}, return an empty list.
 """
 
     try:
-        trans_resp = await asyncio.to_thread(
-            client.chat.completions.create,
+        trans_resp = await client.chat.completions.create(
             model="gpt-4.1",
             messages=[
                 {"role": "user", "content": translation_prompt},
@@ -1654,8 +1654,7 @@ async def gpt_judge_probability(text: str) -> Optional[Dict[str, Any]]:
         # ─────────────────────────────────────────
         # PASS 1 — Full forensic analysis
         # ─────────────────────────────────────────
-        resp = await asyncio.to_thread(
-            client.chat.completions.create,
+        resp = await client.chat.completions.create(
             model="gpt-4.1",
             messages=[
                 {"role": "system", "content": DETECT_JUDGE_PROMPT},
@@ -1684,8 +1683,7 @@ async def gpt_judge_probability(text: str) -> Optional[Dict[str, Any]]:
         # PASS 2 — Structural + pattern deep-dive
         # Always runs as a second independent opinion
         # ─────────────────────────────────────────
-        resp2 = await asyncio.to_thread(
-            client.chat.completions.create,
+        resp2 = await client.chat.completions.create(
             model="gpt-4.1",
             messages=[
                 {
@@ -1762,8 +1760,7 @@ async def gpt_judge_probability(text: str) -> Optional[Dict[str, Any]]:
 
         if 0.30 <= blended_so_far <= 0.70 or disagreement > 0.25:
             # Passes disagree or score is genuinely borderline — bring in a tiebreaker
-            resp3 = await asyncio.to_thread(
-                client.chat.completions.create,
+            resp3 = await client.chat.completions.create(
                 model="gpt-4.1",
                 messages=[
                     {
@@ -2406,24 +2403,22 @@ async def humanize_text(req: HumanizeRequest):
 
     try:
         # -------- First Pass (HIGH QUALITY) --------
-        response = await asyncio.to_thread(
-            client.responses.create,
+        response = await client.chat.completions.create(
             model="gpt-4.1",
-            input=[
+            messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": formatted_input},
             ],
             temperature=random.uniform(0.65, 0.8),
-            max_output_tokens=3000,
+            max_tokens=3000,
         )
         rewritten = extract_text_from_response(response).strip()
 
         # -------- Second Pass (STRUCTURE BREAKER) --------
         if is_weak_rewrite(user_text, rewritten):
-            response2 = await asyncio.to_thread(
-                client.responses.create,
+            response2 = await client.chat.completions.create(
                 model="gpt-4o-mini",
-                input=[
+                messages=[
                     {
                         "role": "system",
                         "content": (
@@ -2439,26 +2434,25 @@ async def humanize_text(req: HumanizeRequest):
                     {"role": "user", "content": f'"""\n{rewritten}\n"""'},
                 ],
                 temperature=random.uniform(0.9, 1.1),
-                max_output_tokens=3000,
+                max_tokens=3000,
             )
-            rewritten = extract_text_from_response(response2).strip()
+            rewritten = (response2.choices[0].message.content or "").strip()
 
         # -------- Third Pass (FEATURE CORRECTION) --------
         features = extract_detector_features(rewritten)
         corrections = build_feature_corrections(features)
 
         if corrections:
-            response3 = await asyncio.to_thread(
-                client.responses.create,
+            response3 = await client.chat.completions.create(
                 model="gpt-4.1",
-                input=[
+                messages=[
                     {"role": "system", "content": sys_prompt + corrections},
                     {"role": "user", "content": f'"""\n{rewritten}\n"""'},
                 ],
                 temperature=random.uniform(0.9, 1.1),
-                max_output_tokens=3000,
+                max_tokens=3000,
             )
-            rewritten = extract_text_from_response(response3).strip()
+            rewritten = (response3.choices[0].message.content or "").strip()
 
         # -------- Entropy Injection (NEW 🔥) --------
         if random.random() < 0.05:
@@ -2517,7 +2511,7 @@ async def health():
 
 
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat")
 async def chat(
     request: Request,
     prompt: Optional[str] = Form(None),
@@ -2530,28 +2524,17 @@ async def chat(
         max_tokens = 512
         upload_files: List[UploadFile] = []
 
-        # -------------------------
-        # JSON request
-        # -------------------------
         if "application/json" in content_type:
             body = await request.json()
             user_text = (body.get("prompt") or "").strip()
             max_tokens = int(body.get("max_output_tokens") or 512)
-            upload_files = []
-
-        # -------------------------
-        # multipart/form-data request
-        # -------------------------
         else:
             user_text = (prompt or "").strip()
-            max_tokens = 512
             upload_files = files or []
 
-        # allow files-only OR text-only
         if not user_text and not upload_files:
             raise HTTPException(status_code=400, detail="Empty prompt")
 
-        # Build multimodal content
         user_content = []
         if user_text:
             user_content.append({"type": "text", "text": user_text})
@@ -2560,23 +2543,31 @@ async def chat(
             user_content.append({"type": "text", "text": "Help me with this attachment."})
 
         doc_text_blobs = []
-        for f in upload_files:
-            raw = await f.read()
 
+        async def process_file(f: UploadFile):
+            raw = await f.read()
             if len(raw) > 6 * 1024 * 1024:
                 raise HTTPException(status_code=413, detail=f"File too large: {f.filename}")
-
             fname = f.filename or "file"
             ctype = (f.content_type or "").lower()
-
             if ctype.startswith("image/"):
                 b64 = base64.b64encode(raw).decode("utf-8")
-                data_url = f"data:{ctype};base64,{b64}"
-                user_content.append({"type": "image_url", "image_url": {"url": data_url}})
+                return {"type": "image_url", "image_url": {"url": f"data:{ctype};base64,{b64}"}}
             else:
                 extracted = file_to_text(fname, raw)
                 if extracted:
-                    doc_text_blobs.append(f"\n\n[File: {fname}]\n{extracted[:12000]}")
+                    return {"type": "doc", "fname": fname, "text": extracted[:12000]}
+            return None
+
+        if upload_files:
+            results = await asyncio.gather(*[process_file(f) for f in upload_files])
+            for r in results:
+                if r is None:
+                    continue
+                if r["type"] == "image_url":
+                    user_content.append(r)
+                elif r["type"] == "doc":
+                    doc_text_blobs.append(f"\n\n[File: {r['fname']}]\n{r['text']}")
 
         if doc_text_blobs:
             user_content.append({
@@ -2586,19 +2577,23 @@ async def chat(
 
         model_name = os.getenv("OPENAI_MODEL", "gpt-4.1")
 
-        response = await asyncio.to_thread(
-            client.chat.completions.create,
-            model=model_name,
-            messages=[{"role": "user", "content": user_content}],
-            max_tokens=max_tokens,
-        )
+        async def token_stream():
+            try:
+                stream = await client.chat.completions.create(
+                    model=model_name,
+                    messages=[{"role": "user", "content": user_content}],
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+                async for chunk in stream:
+                    delta = chunk.choices[0].delta.content if chunk.choices else None
+                    if delta:
+                        yield delta
+            except Exception as stream_err:
+                logger.exception("Streaming failed")
+                yield ""
 
-        reply = (response.choices[0].message.content or "").strip() or "[No reply]"
-        usage = None
-        if getattr(response, "usage", None):
-            usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") else dict(response.usage)
-
-        return {"reply": reply, "usage": usage}
+        return StreamingResponse(token_stream(), media_type="text/plain")
 
     except HTTPException:
         raise
@@ -2618,13 +2613,12 @@ async def verify():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OPENAI_API_KEY not configured")
 
     try:
-        resp = await asyncio.to_thread(
-            client.responses.create,
+        resp = await client.chat.completions.create(
             model=API_MODEL,
-            input="Reply with the single word: pong",
-            max_output_tokens=16,
+            messages=[{"role": "user", "content": "Reply with the single word: pong"}],
+            max_tokens=16,
         )
-        text = extract_text_from_response(resp)
+        text = (resp.choices[0].message.content or "").strip()
         return {"ok": True, "model": API_MODEL, "response": text}
     except Exception as e:
         logger.exception("Verification call failed")

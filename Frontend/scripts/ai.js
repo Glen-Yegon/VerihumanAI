@@ -108,7 +108,11 @@ const stopBtn = document.createElement("button");
 stopBtn.id = "stopBtn";
 stopBtn.type = "button";
 stopBtn.title = "Stop response";
-stopBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>`;
+stopBtn.innerHTML = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <rect x="5" y="5" width="14" height="14" rx="2"/>
+  </svg>
+`;
 stopBtn.style.display = "none";
 // Insert stop button next to sendBtn — do this after DOM loads
 document.addEventListener("DOMContentLoaded", () => {
@@ -468,6 +472,8 @@ if (chatContainer.contains(humanizerUI)) {
 // Handle mode button clicks and integrate with history
 modeButtons.forEach(btn => {
   btn.addEventListener("click", async () => {
+    removeGreetingBubble(); // ✅ dismiss greeting on first chat
+
     const selectedMode = btn.dataset.mode;
 
     if (selectedMode === currentMode) return;
@@ -984,49 +990,50 @@ async function compressImage(file, { maxWidth = 1400, quality = 0.8 } = {}) {
 
 
 async function sendPromptToAPI(promptText, files = [], signal = null) {
-  try {
-    let res;
-    const fetchOpts = signal ? { signal } : {};
+  let res;
+  const fetchOpts = signal ? { signal } : {};
 
-    if (files && files.length) {
-      const form = new FormData();
-      form.append("prompt", promptText || "");
-      for (const f of files) {
-        const toSend = f.type.startsWith("image/") ? await compressImage(f) : f;
-        form.append("files", toSend);
-      }
-      res = await fetch(`${API_BASE}/api/chat`, {
-        method: "POST",
-        body: form,
-        ...fetchOpts,
-      });
-    } else {
-      res = await fetch(`${API_BASE}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: promptText }),
-        ...fetchOpts,
-      });
+  if (files && files.length) {
+    const form = new FormData();
+    form.append("prompt", promptText || "");
+    for (const f of files) {
+      const toSend = f.type.startsWith("image/") ? await compressImage(f) : f;
+      form.append("files", toSend);
     }
-
-    if (!res.ok) {
-      let text = `Server error ${res.status}`;
-      try {
-        const j = await res.json();
-        text = j.detail || JSON.stringify(j);
-      } catch (e) {}
-      throw new Error(text);
-    }
-    return await res.json();
-  } catch (err) {
-    throw err; // re-throw so AbortError propagates correctly
+    res = await fetch(`${API_BASE}/api/chat`, { method: "POST", body: form, ...fetchOpts });
+  } else {
+    res = await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: promptText }),
+      ...fetchOpts,
+    });
   }
+
+  if (!res.ok) {
+    let text = `Server error ${res.status}`;
+    try { const j = await res.json(); text = j.detail || JSON.stringify(j); } catch (e) {}
+    throw new Error(text);
+  }
+
+  // ✅ Read stream and return as plain string (keeps handleSend unchanged)
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let full = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    full += decoder.decode(value, { stream: true });
+  }
+  return { reply: full };
 }
 
 // ------------------------
 // CHAT MODE
 // ------------------------
 async function handleSend() {
+  removeGreetingBubble(); // ✅ dismiss greeting on first chat
+
   const userUID =
     sessionStorage.getItem("userUID") ||
     localStorage.getItem("userUID");
@@ -1073,6 +1080,12 @@ async function handleSend() {
 
   try {
     const data = await sendPromptToAPI(text, filesToSend, signal);
+
+    // ✅ Swap buttons IMMEDIATELY when response arrives
+    sendBtn.style.display = "";
+    stopBtn.style.display = "none";
+    currentAbortController = null;
+
     const reply = typeof data.reply === "string" ? data.reply : "[No reply]";
 
     aiBubble.classList.remove("scanning");
@@ -1124,12 +1137,12 @@ async function handleSend() {
     }
     scrollToBottom();
   } finally {
-    // ✅ Always restore send button and keep input enabled
-    sendBtn.style.display = "";
-    stopBtn.style.display = "none";
-    currentAbortController = null;
-    chatInput.focus();
-  }
+      // handles abort/error cases — success case already swapped above
+      sendBtn.style.display = "";
+      stopBtn.style.display = "none";
+      if (currentAbortController) currentAbortController = null;
+      chatInput.focus();
+    }
 }
 
 window.handleSend = handleSend;
@@ -1138,6 +1151,8 @@ window.handleSend = handleSend;
 // DETECTION MODE 
 // ------------------------
 runDetectionBtn.addEventListener("click", async () => {
+  removeGreetingBubble(); // ✅ dismiss greeting on first chat
+
   const userUID = sessionStorage.getItem("userUID") || localStorage.getItem("userUID");
   if (!userUID) return;
 
@@ -1533,6 +1548,8 @@ window.addEventListener("load", () => {
 });
 
 runHumanizerBtn.addEventListener("click", async () => {
+  removeGreetingBubble(); // ✅ dismiss greeting on first chat
+
   if (runHumanizerBtn.disabled) return;
 
   const userUID =
@@ -1642,19 +1659,54 @@ runHumanizerBtn.addEventListener("click", async () => {
   }
 });
 
+// ------------------------
+// GREETING BUBBLE
+// ------------------------
+function showGreetingBubble(name) {
+  const greeting = document.createElement("div");
+  greeting.id = "greeting-bubble-wrapper";
+  greeting.className = "chat-wrapper ai";
 
-// ------------------------
-// Load previous chat on start
-// ------------------------
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.style.backgroundImage = "url('Images/veri-logo.png')";
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble ai";
+  bubble.id = "greeting-bubble";
+  bubble.style.whiteSpace = "pre-wrap";
+  bubble.style.wordBreak = "break-word";
+
+  greeting.appendChild(avatar);
+  greeting.appendChild(bubble);
+  chatContainer.appendChild(greeting);
+
+  const displayName = name ? name.split(" ")[0] : "there"; // first name only for warmth
+  const fullGreeting = `Hey ${name || "there"}! 👋\nHow can I help you today?`;
+
+  typeText(bubble, fullGreeting);
+  scrollToBottom();
+}
+
+function removeGreetingBubble() {
+  const el = document.getElementById("greeting-bubble-wrapper");
+  if (el) {
+    el.style.transition = "opacity 0.3s ease";
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 300);
+  }
+}
+
+
 // ------------------------
 // Load previous chat on start
 // ------------------------
 async function init() {
-const userUID =
-  sessionStorage.getItem("userUID") ||
-  localStorage.getItem("userUID");
+  const userUID =
+    sessionStorage.getItem("userUID") ||
+    localStorage.getItem("userUID");
 
-if (!userUID) return;
+  if (!userUID) return;
 
   try {
     await ensureUserCredits(userUID);
@@ -1662,123 +1714,168 @@ if (!userUID) return;
     const allowed = await creditGuard();
     if (!allowed) return;
 
-    // ✅ NEW: getLatestChat now returns { chatId, messages }
-    const latest = await getLatestChat(userUID);
-    const latestMessages = latest?.messages || [];
+    // ✅ KEY: "tab_session_active" survives reloads but NOT tab close/reopen
+    const isReload = sessionStorage.getItem("tab_session_active") === "true";
+    sessionStorage.setItem("tab_session_active", "true");
 
-    // ✅ store pointers for saving/appending later
-    window.currentChatId = latest?.chatId || null;
-if (window.currentChatId) sessionStorage.setItem("currentChatId", window.currentChatId);
-else sessionStorage.removeItem("currentChatId");
+    if (isReload) {
+      // ─────────────────────────────────────────
+      // PAGE RELOAD — restore previous chat state
+      // ─────────────────────────────────────────
+      const latest = await getLatestChat(userUID);
+      const latestMessages = latest?.messages || [];
 
-    if (!Array.isArray(latestMessages) || latestMessages.length === 0) {
-      isNewConversation = true;
-      currentMode = "chat";
+      window.currentChatId = latest?.chatId || null;
+      if (window.currentChatId) sessionStorage.setItem("currentChatId", window.currentChatId);
+      else sessionStorage.removeItem("currentChatId");
 
+      if (!Array.isArray(latestMessages) || latestMessages.length === 0) {
+        window.isNewConversation = true;
+        currentMode = "chat";
+        modeButtons.forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.mode === currentMode);
+        });
+        updateModeUI();
+        toggleScrollButton();
+        return;
+      }
+
+      window.isNewConversation = false;
+
+      latestMessages.forEach((m) => {
+        const sender = m.sender === "ai" ? "ai" : "user";
+        const type = m.metadata?.type || m.mode || "chat";
+
+        if (sender === "ai" && type === "detect") {
+          let parsed = null;
+          try { parsed = JSON.parse(m.text); } catch (e) {}
+          const rd = parsed?.renderData;
+
+          if (rd) {
+            const aiBubble = createBubble("", "ai");
+            aiBubble.innerHTML = "";
+
+            const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+            const pct = (n) => `${clamp(Number(n || 0), 0, 100).toFixed(1)}%`;
+
+            const container = document.createElement("div");
+            container.style.cssText = "display:flex;flex-direction:column;gap:12px;font-family:'Exo 2',sans-serif;width:100%";
+
+            const header = document.createElement("div");
+            header.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px";
+            const titleEl = document.createElement("div");
+            titleEl.textContent = "AI Detection Result";
+            titleEl.style.cssText = "font-weight:800;font-size:1.05rem";
+            header.appendChild(titleEl);
+            container.appendChild(header);
+
+            const scoreWrap = document.createElement("div");
+            scoreWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px";
+            const scoreEl = document.createElement("div");
+            scoreEl.textContent = `AI likelihood: ${pct(rd.aiPct)}`;
+            scoreEl.style.cssText = "font-size:1.35rem;font-weight:900;color:#8ab6f9";
+            const classEl = document.createElement("div");
+            const friendly = rd.classification === "AI_ONLY" ? "AI-written" : rd.classification === "HUMAN_ONLY" ? "Human-written" : "Mixed / Uncertain";
+            classEl.textContent = `Overall: ${friendly}`;
+            classEl.style.cssText = "font-weight:600;text-align:center";
+            const metaEl = document.createElement("div");
+            metaEl.textContent = `Engine: ${rd.engine} • ${rd.words} words • ${rd.totalSentences} sentences`;
+            metaEl.style.cssText = "font-size:0.85rem;opacity:0.85;text-align:center";
+            scoreWrap.append(scoreEl, classEl, metaEl);
+            container.appendChild(scoreWrap);
+
+            const probsWrap = document.createElement("div");
+            probsWrap.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px";
+            function probCard(label, value) {
+              const box = document.createElement("div");
+              box.style.cssText = "border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px;text-align:center";
+              const l = document.createElement("div"); l.textContent = label; l.style.cssText = "font-size:0.85rem;opacity:0.85";
+              const v = document.createElement("div"); v.textContent = pct(value); v.style.cssText = "font-size:1.05rem;font-weight:800";
+              box.append(l, v); return box;
+            }
+            probsWrap.append(probCard("AI", rd.aiPct), probCard("Human", rd.humanPct));
+            container.appendChild(probsWrap);
+
+            const guide = document.createElement("div");
+            guide.style.cssText = "border:1px dashed rgba(255,255,255,0.18);border-radius:12px;padding:12px;font-size:0.9rem;opacity:0.95";
+            guide.innerHTML = `<strong>Note:</strong> AI detection is not perfect. Editing, templates, and non-native English can change results.`;
+            container.appendChild(guide);
+
+            aiBubble.appendChild(container);
+            aiBubble.classList.add("detect-result");
+          } else {
+            const aiBubble = createBubble(m.text, "ai");
+            aiBubble.classList.add("detect-result");
+          }
+
+        } else if (sender === "ai" && type === "humanize") {
+          const aiBubble = createBubble("", "ai");
+          aiBubble.innerHTML = renderAIMessageToHTML(m.text);
+          aiBubble.classList.add("humanizer-ai");
+          addCopyButton(aiBubble);
+
+        } else {
+          const bubble = createBubble(m.text, sender);
+          if (m.metadata?.systemMessage) bubble.classList.add("system-message");
+        }
+
+        addMessage(sender, m.text);
+      });
+
+      const lastModeMessage = latestMessages.slice().reverse().find(m => m.mode);
+      currentMode = lastModeMessage?.mode || "chat";
       modeButtons.forEach(btn => {
         btn.classList.toggle("active", btn.dataset.mode === currentMode);
       });
-
       updateModeUI();
-      toggleScrollButton();
-      return;
-    }
 
-    isNewConversation = false;
+    } else {
+      // ─────────────────────────────────────────
+      // FRESH VISIT (tab closed + reopened)
+      // Start new chat + show greeting
+      // ─────────────────────────────────────────
+      chatContainer.innerHTML = "";
+      currentChatMessages = [];
+      window.currentChatId = null;
+      window.isNewConversation = true;
+      sessionStorage.removeItem("currentChatId");
 
-latestMessages.forEach((m) => {
-      const sender = m.sender === "ai" ? "ai" : "user";
-      const type = m.metadata?.type || m.mode || "chat";
+      currentMode = "chat";
+      modeButtons.forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === "chat");
+      });
+      updateModeUI();
 
-      if (sender === "ai" && type === "detect") {
-        // parse and re-render detection bubble with full formatting
-        let parsed = null;
-        try { parsed = JSON.parse(m.text); } catch (e) {}
-        const rd = parsed?.renderData;
+      // Fetch name and greet
+      try {
+        const userRef = doc(db, "users", userUID);
+        const docSnap = await getDoc(userRef);
+        let userName = "";
 
-        if (rd) {
-          // build the same formatted card inline using existing variables
-          const aiBubble = createBubble("", "ai");
-          aiBubble.innerHTML = "";
-
-          const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-          const pct = (n) => `${clamp(Number(n || 0), 0, 100).toFixed(1)}%`;
-
-          const container = document.createElement("div");
-          container.style.cssText = "display:flex;flex-direction:column;gap:12px;font-family:'Exo 2',sans-serif;width:100%";
-
-          const header = document.createElement("div");
-          header.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px";
-          const titleEl = document.createElement("div");
-          titleEl.textContent = "AI Detection Result";
-          titleEl.style.cssText = "font-weight:800;font-size:1.05rem";
-          header.appendChild(titleEl);
-          container.appendChild(header);
-
-          const scoreWrap = document.createElement("div");
-          scoreWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px";
-          const scoreEl = document.createElement("div");
-          scoreEl.textContent = `AI likelihood: ${pct(rd.aiPct)}`;
-          scoreEl.style.cssText = "font-size:1.35rem;font-weight:900;color:#8ab6f9";
-          const classEl = document.createElement("div");
-          const friendly = rd.classification === "AI_ONLY" ? "AI-written" : rd.classification === "HUMAN_ONLY" ? "Human-written" : "Mixed / Uncertain";
-          classEl.textContent = `Overall: ${friendly}`;
-          classEl.style.cssText = "font-weight:600;text-align:center";
-          const metaEl = document.createElement("div");
-          metaEl.textContent = `Engine: ${rd.engine} • ${rd.words} words • ${rd.totalSentences} sentences`;
-          metaEl.style.cssText = "font-size:0.85rem;opacity:0.85;text-align:center";
-          scoreWrap.append(scoreEl, classEl, metaEl);
-          container.appendChild(scoreWrap);
-
-          const probsWrap = document.createElement("div");
-          probsWrap.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px";
-          function probCard(label, value) {
-            const box = document.createElement("div");
-            box.style.cssText = "border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px;text-align:center";
-            const l = document.createElement("div"); l.textContent = label; l.style.cssText = "font-size:0.85rem;opacity:0.85";
-            const v = document.createElement("div"); v.textContent = pct(value); v.style.cssText = "font-size:1.05rem;font-weight:800";
-            box.append(l, v); return box;
-          }
-          probsWrap.append(probCard("AI", rd.aiPct), probCard("Human", rd.humanPct));
-          container.appendChild(probsWrap);
-
-          const guide = document.createElement("div");
-          guide.style.cssText = "border:1px dashed rgba(255,255,255,0.18);border-radius:12px;padding:12px;font-size:0.9rem;opacity:0.95";
-          guide.innerHTML = `<strong>Note:</strong> AI detection is not perfect. Editing, templates, and non-native English can change results.`;
-          container.appendChild(guide);
-
-          aiBubble.appendChild(container);
-          aiBubble.classList.add("detect-result");
-        } else {
-          // fallback for old entries without renderData
-          const aiBubble = createBubble(m.text, "ai");
-          aiBubble.classList.add("detect-result");
+        if (docSnap.exists()) {
+          const data = docSnap.data() || {};
+          userName = data.displayName || data.name || data.email || "";
+          if (userName.includes("@")) userName = userName.split("@")[0];
         }
 
-      } else if (sender === "ai" && type === "humanize") {
-        const aiBubble = createBubble("", "ai");
-        aiBubble.innerHTML = renderAIMessageToHTML(m.text);
-        aiBubble.classList.add("humanizer-ai");
-        addCopyButton(aiBubble);
+        if (!userName) {
+          userName =
+            sessionStorage.getItem("userName") ||
+            localStorage.getItem("userName") ||
+            sessionStorage.getItem("userEmail") ||
+            localStorage.getItem("userEmail") ||
+            "";
+          if (userName.includes("@")) userName = userName.split("@")[0];
+        }
 
-      } else {
-        const bubble = createBubble(m.text, sender);
-        if (m.metadata?.systemMessage) bubble.classList.add("system-message");
+        showGreetingBubble(userName);
+      } catch (err) {
+        showGreetingBubble("");
       }
+    }
 
-      addMessage(sender, m.text);
-    });
-
-    const lastModeMessage = latestMessages.slice().reverse().find(m => m.mode);
-    currentMode = lastModeMessage?.mode || "chat";
-
-    modeButtons.forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.mode === currentMode);
-    });
-
-    updateModeUI();
   } catch (err) {
-    console.warn("Could not load latest chat:", err);
+    console.warn("Init error:", err);
     currentMode = "chat";
     updateModeUI();
     chatInput?.focus?.();
@@ -1786,7 +1883,6 @@ latestMessages.forEach((m) => {
 
   toggleScrollButton();
 }
-
 
 
 

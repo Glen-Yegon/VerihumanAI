@@ -1455,27 +1455,32 @@ html, body {
 /* Textarea */
 /* ---------------------------- */
 #detect-input {
-  width: 100vw; /* full viewport width */
-  max-width: 100%; /* prevents overflow */
-  min-height: 120px;
-  padding: 14px;
-  font-size: 1rem;
+  width: 100vw;
+  max-width: 100%;
+  min-height: 275px; /* big jump in height */
+  padding: 24px;
+  font-size: 1.25rem; /* more comfortable typing size */
+  line-height: 1.6;
   font-family: 'Exo 2', sans-serif;
+
   color: #cadcfc;
   background: rgba(0, 36, 107, 0.35);
-  border: 1px solid #8ab6f9;
-  border-radius: 4px;
-  backdrop-filter: blur(4px);
+
+  border: 2px solid #8ab6f9;
+  border-radius: 10px;
+
+  backdrop-filter: blur(5px);
+
   resize: vertical;
   outline: none;
-  transition: all 0.2s ease;
-  box-sizing: border-box; /* includes padding and border in width */
-}
 
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
 
 #detect-input:focus {
   border-color: #cadcfc;
-  box-shadow: 0 0 8px rgba(202, 220, 252, 0.6);
+  box-shadow: 0 0 16px rgba(202, 220, 252, 0.75);
 }
 
 /* ---------------------------- */
@@ -1540,7 +1545,7 @@ html, body {
   }
   
   #detect-input {
-    min-height: 100px;
+    min-height: 170px;
   }
 }
 
@@ -2107,19 +2112,57 @@ html, body {
 }
 
 #stopBtn {
+  position: relative;
   background: transparent;
-  border: none;
+  border: 1.5px solid #8ab6f9;
   cursor: pointer;
-  color: #ff6b6b;
-  padding: 6px;
-  border-radius: 8px;
+  color: #cadcfc;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
+  overflow: visible;
 }
+
+#stopBtn::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid #8ab6f9;
+  opacity: 0.4;
+  animation: stop-pulse 1.4s ease-out infinite;
+}
+
 #stopBtn:hover {
-  background: rgba(255, 107, 107, 0.15);
+  background: rgba(138, 182, 249, 0.12);
+  border-color: #cadcfc;
+}
+
+#stopBtn:active {
+  background: rgba(138, 182, 249, 0.22);
+  transform: scale(0.95);
+}
+
+#stopBtn svg {
+  width: 14px;
+  height: 14px;
+  fill: #8ab6f9;
+  flex-shrink: 0;
+}
+
+#stopBtn:hover svg {
+  fill: #cadcfc;
+}
+
+@keyframes stop-pulse {
+  0%   { transform: scale(1);    opacity: 0.45; }
+  60%  { transform: scale(1.55); opacity: 0;    }
+  100% { transform: scale(1.55); opacity: 0;    }
 }
 
 /* =========================
