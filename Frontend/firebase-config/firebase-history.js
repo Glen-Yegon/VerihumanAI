@@ -284,3 +284,27 @@ export async function deleteChatHistory(userUID, chatId) {
   }
 }
 
+/**
+ * Creates a new empty chat document and returns its ID.
+ * Used on fresh page visits to establish a real chatId immediately.
+ */
+export async function createNewChatDoc(userId, title = "New Conversation") {
+  try {
+    if (!userId) return null;
+
+    const historyRef = collection(db, "history", userId, "chats");
+    const docRef = await addDoc(historyRef, {
+      title,
+      messages: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastMode: "chat",
+    });
+
+    currentChatDocId = docRef.id;
+    return docRef.id;
+  } catch (err) {
+    console.error("🔥 Error creating new chat doc:", err);
+    return null;
+  }
+}

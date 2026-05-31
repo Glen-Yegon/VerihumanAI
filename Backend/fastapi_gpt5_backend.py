@@ -2577,11 +2577,50 @@ async def chat(
 
         model_name = os.getenv("OPENAI_MODEL", "gpt-4.1")
 
+        # Parse conversation history sent from frontend
+        conversation_history = []
+        if "application/json" in content_type:
+            raw_history = body.get("history") or []
+        else:
+            raw_history_str = (request._form.get("history") if hasattr(request, '_form') else None) or "[]"
+            try:
+                raw_history = json.loads(raw_history_str)
+            except Exception:
+                raw_history = []
+
+        for entry in raw_history:
+            role = entry.get("role", "user")
+            content = entry.get("content", "")
+            if role in ("user", "assistant") and content:
+                conversation_history.append({"role": role, "content": content})
+
+        # Build messages: history first, then current user message
+        messages_to_send = conversation_history[:-1] if conversation_history else []  # exclude last (current msg already in user_content)
+        messages_to_send.append({"role": "user", "content": user_content})
+
+        CHAT_SYSTEM_PROMPT = (
+            "You are a helpful, conversational AI assistant. "
+            "Follow these formatting rules strictly:\n\n"
+            
+            "FOR CODE: Always wrap any code — no matter how short — in triple backticks with the language name. "
+            "For example: ```python\nprint('hello')\n``` or ```javascript\nconsole.log('hi')\n```. "
+            "Never write code inline as plain text. Even a single line of code must be in a code block.\n\n"
+            
+            "FOR TEXT: Write in plain flowing sentences and paragraphs. "
+            "Do NOT use asterisks for bold or italic. "
+            "Do NOT use # for headings. "
+            "Do NOT use hyphens or dashes to make bullet lists. "
+            "Do NOT use numbered lists with dots like '1.' or '2.'. "
+            "If you need to list things, write them naturally in a sentence separated by commas, "
+            "or put each item on its own line without any bullet symbol. "
+            "Write the way a human would speak — clear, direct, and natural."
+        )
+
         async def token_stream():
             try:
                 stream = await client.chat.completions.create(
                     model=model_name,
-                    messages=[{"role": "user", "content": user_content}],
+                    messages=[{"role": "system", "content": CHAT_SYSTEM_PROMPT}] + messages_to_send,
                     max_tokens=max_tokens,
                     stream=True,
                 )

@@ -1,20 +1,21 @@
 import { app } from "../firebase-config/firebase.min.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getAuth, signOut} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
-import {
-  saveChatToHistory,
-  getLatestChat,
-  saveFullChatSession,
-  resetCurrentChatDoc,     // ✅ import real one
-  setCurrentChatDocId,     // ✅ optional (only if you want sync)
-} from "../firebase-config/firebase-history.js";
 import {
   ensureUserCredits,
   canUseCredits,
   consumeCredit,
   getCreditInfo
 } from "../firebase-config/firebase-credits.min.js";
+import {
+  saveChatToHistory,
+  getLatestChat,
+  saveFullChatSession,
+  resetCurrentChatDoc,
+  setCurrentChatDocId,
+  createNewChatDoc,
+} from "../firebase-config/firebase-history.min.js";
 
 // ✅ OPTIONAL (recommended): auto-switch between local + render without breaking anything
 const API_BASE =
@@ -694,6 +695,27 @@ function showLoginPromptBubble() {
   scrollToBottom();
 }
 
+function copyCodeBlock(btn) {
+  // Walk up to find the code element inside the same block
+  const codeEl = btn.closest(".ai-codeblock")?.querySelector("code");
+  if (!codeEl) return;
+
+  const text = codeEl.innerText || codeEl.textContent || "";
+
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+
+    setTimeout(() => {
+      btn.textContent = "Copy";
+      btn.classList.remove("copied");
+    }, 2000);
+  });
+}
+
+// Make it global so the onclick in the HTML string can reach it
+window.copyCodeBlock = copyCodeBlock;
+
 function addCopyButton(bubbleEl) {
   // Skip if bubble already has a copy button
   if (bubbleEl.querySelector(".copy-btn")) return;
@@ -762,6 +784,43 @@ function addCopyButton(bubbleEl) {
   bubbleEl.appendChild(btn);
 }
 
+function stripMarkdown(text = "") {
+  // ── Step 1: Temporarily extract code blocks so we never touch them ──
+  const codeBlocks = [];
+  let protected_text = text.replace(/```[\s\S]*?```/g, (match) => {
+    codeBlocks.push(match);
+    return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
+  });
+
+  // ── Step 2: Strip markdown from non-code text only ──
+  protected_text = protected_text
+    // Remove headings
+    .replace(/^#{1,6}\s+/gm, "")
+    // Remove bold/italic
+    .replace(/\*{1,3}([^*\n]+)\*{1,3}/g, "$1")
+    .replace(/_{1,2}([^_\n]+)_{1,2}/g, "$1")
+    // Remove inline code (single backtick only, now safe)
+    .replace(/`([^`]+)`/g, "$1")
+    // Remove bullet points
+    .replace(/^[\s]*[-*+]\s+/gm, "")
+    // Remove numbered lists
+    .replace(/^\s*\d+\.\s+/gm, "")
+    // Remove blockquotes
+    .replace(/^>\s+/gm, "")
+    // Remove horizontal rules
+    .replace(/^[-*_]{3,}\s*$/gm, "")
+    // Collapse excess newlines
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // ── Step 3: Restore code blocks exactly as they were ──
+  protected_text = protected_text.replace(/%%CODEBLOCK_(\d+)%%/g, (_, i) => {
+    return codeBlocks[parseInt(i)];
+  });
+
+  return protected_text;
+}
+
 function escapeHTML(str = "") {
   return str
     .replaceAll("&", "&amp;")
@@ -769,60 +828,6 @@ function escapeHTML(str = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-// Detect triple-backtick code blocks: ```lang\n...\n```
-function renderAIMessageToHTML(raw = "") {
-  const text = String(raw);
-
-  // Split into segments: code blocks + normal text
-  const parts = text.split(/```/g);
-
-  let html = `<div class="ai-rich">`;
-
-  for (let i = 0; i < parts.length; i++) {
-    const chunk = parts[i];
-
-    // ------------------------
-    // NORMAL TEXT
-    // ------------------------
-    if (i % 2 === 0) {
-      const safe = escapeHTML(chunk).trim();
-
-      if (safe) {
-        // ✅ Split into paragraphs using double line breaks
-        const paragraphs = safe.split(/\n\s*\n/);
-
-        html += paragraphs
-          .map(p => `<p class="ai-text">${p.replace(/\n/g, "<br>").trim()}</p>`)
-          .join("");
-      }
-    }
-
-    // ------------------------
-    // CODE BLOCK
-    // ------------------------
-    else {
-      let code = chunk;
-      let lang = "";
-
-      const firstNewline = code.indexOf("\n");
-      if (firstNewline !== -1) {
-        lang = code.slice(0, firstNewline).trim();
-        code = code.slice(firstNewline + 1);
-      }
-
-      html += `
-        <div class="ai-codeblock">
-          ${lang ? `<div class="ai-code-lang">${escapeHTML(lang)}</div>` : ""}
-          <pre><code>${escapeHTML(code.trim())}</code></pre>
-        </div>
-      `;
-    }
-  }
-
-  html += `</div>`;
-  return html;
 }
 
 
@@ -835,13 +840,9 @@ function extractUrls(text = "") {
   return matches ? matches.map(u => u.replace(/[.,!?)]$/, "")) : [];
 }
 
-/**
- * Takes the original reply text and returns:
- * - html: the rendered rich html (text + code blocks)
- * - images: array of detected image URLs
- */
 function renderAIWithDetectedMedia(raw = "") {
-  const urls = extractUrls(raw);
+  const stripped = stripMarkdown(String(raw));
+  const urls = extractUrls(stripped);
   const images = urls.filter(isImageUrl);
 
   // Render code blocks + text first
@@ -864,6 +865,91 @@ function renderAIWithDetectedMedia(raw = "") {
   }
 
   return { html, images };
+}
+
+/**
+ * Takes the original reply text and returns:
+ * - html: the rendered rich html (text + code blocks)
+ * - images: array of detected image URLs
+ */
+function renderAIMessageToHTML(raw = "") {
+  const text = stripMarkdown(String(raw));
+
+  // Split on triple backticks to separate code blocks from normal text
+  const parts = text.split(/```/g);
+
+  let html = `<div class="ai-rich">`;
+
+  for (let i = 0; i < parts.length; i++) {
+    const chunk = parts[i];
+
+    // ── NORMAL TEXT (even indexes) ──
+    if (i % 2 === 0) {
+      if (!chunk.trim()) continue;
+
+      // Handle inline code with single backticks
+      const withInlineCode = chunk.replace(
+        /`([^`]+)`/g,
+        (_, code) => `<code class="ai-inline-code">${escapeHTML(code)}</code>`
+      );
+
+      // Split into paragraphs on double newlines
+      const paragraphs = withInlineCode.split(/\n\s*\n/);
+      html += paragraphs
+        .map(p => {
+          const trimmed = p.trim();
+          if (!trimmed) return "";
+          return `<p class="ai-text">${trimmed.replace(/\n/g, "<br>")}</p>`;
+        })
+        .filter(Boolean)
+        .join("");
+    }
+
+    // ── CODE BLOCK (odd indexes) ──
+    else {
+      let code = chunk;
+      let lang = "plaintext";
+
+      // Extract language from first line (e.g. ```javascript)
+      const firstNewline = code.indexOf("\n");
+      if (firstNewline !== -1) {
+        const possibleLang = code.slice(0, firstNewline).trim();
+        if (possibleLang && !/\s/.test(possibleLang)) {
+          lang = possibleLang;
+          code = code.slice(firstNewline + 1);
+        }
+      }
+
+      const escapedCode = escapeHTML(code.trim());
+
+      // Try to highlight with Highlight.js
+      let highlightedCode = escapedCode;
+      if (typeof hljs !== "undefined") {
+        try {
+          if (lang !== "plaintext" && hljs.getLanguage(lang)) {
+            highlightedCode = hljs.highlight(code.trim(), { language: lang }).value;
+          } else {
+            highlightedCode = hljs.highlightAuto(code.trim()).value;
+          }
+        } catch (e) {
+          highlightedCode = escapedCode;
+        }
+      }
+
+      html += `
+        <div class="ai-codeblock">
+          <div class="ai-code-header">
+            <span class="ai-code-lang">${escapeHTML(lang)}</span>
+            <button class="ai-code-copy-btn" onclick="copyCodeBlock(this)">Copy</button>
+          </div>
+          <pre><code class="hljs language-${escapeHTML(lang)}">${highlightedCode}</code></pre>
+        </div>
+      `;
+    }
+  }
+
+  html += `</div>`;
+  return html;
 }
 
 // ------------------------
@@ -996,6 +1082,13 @@ async function sendPromptToAPI(promptText, files = [], signal = null) {
   if (files && files.length) {
     const form = new FormData();
     form.append("prompt", promptText || "");
+
+    // Send conversation history as JSON string
+    const historyForAPI = currentChatMessages
+      .slice(-20) // last 20 messages max, to avoid token overload
+      .map(m => ({ role: m.sender === "ai" ? "assistant" : "user", content: m.text }));
+    form.append("history", JSON.stringify(historyForAPI));
+
     for (const f of files) {
       const toSend = f.type.startsWith("image/") ? await compressImage(f) : f;
       form.append("files", toSend);
@@ -1005,7 +1098,12 @@ async function sendPromptToAPI(promptText, files = [], signal = null) {
     res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: promptText }),
+      body: JSON.stringify({
+        prompt: promptText,
+        history: currentChatMessages
+          .slice(-20)
+          .map(m => ({ role: m.sender === "ai" ? "assistant" : "user", content: m.text }))
+      }),
       ...fetchOpts,
     });
   }
@@ -1016,7 +1114,6 @@ async function sendPromptToAPI(promptText, files = [], signal = null) {
     throw new Error(text);
   }
 
-  // ✅ Read stream and return as plain string (keeps handleSend unchanged)
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let full = "";
@@ -1836,9 +1933,16 @@ async function init() {
       // ─────────────────────────────────────────
       chatContainer.innerHTML = "";
       currentChatMessages = [];
-      window.currentChatId = null;
-      window.isNewConversation = true;
       sessionStorage.removeItem("currentChatId");
+
+      // ✅ Create a real Firestore doc immediately so this session has a proper ID
+      const freshChatId = await createNewChatDoc(userUID, "New Conversation");
+      window.currentChatId = freshChatId;
+      window.isNewConversation = false; // already has a doc, no need to force-create later
+
+      if (freshChatId) {
+        sessionStorage.setItem("currentChatId", freshChatId);
+      }
 
       currentMode = "chat";
       modeButtons.forEach(btn => {
@@ -1903,9 +2007,17 @@ async function startNewChat() {
 
   resetCurrentChatDoc();
 
-  window.currentChatId = null;
   window.history.pushState({}, "", window.location.pathname);
   sessionStorage.removeItem("currentChatId");
+
+  // ✅ Create a fresh doc immediately, same as fresh visit
+  const newChatId = await createNewChatDoc(userUID, "New Conversation");
+  window.currentChatId = newChatId;
+  window.isNewConversation = false;
+
+  if (newChatId) {
+    sessionStorage.setItem("currentChatId", newChatId);
+  }
 
   chatContainer.innerHTML = "";
   currentChatMessages = [];

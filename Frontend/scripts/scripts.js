@@ -5,6 +5,11 @@ import {
   setCurrentChatDocId,
 } from "../firebase-config/firebase-history.min.js";
 
+import { app } from "../firebase-config/firebase.min.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+const auth = getAuth(app);
+
 
 window.addEventListener("DOMContentLoaded", () => {
     // Animate sidebar for desktop
@@ -587,22 +592,36 @@ window.loadChatIntoContainer = loadChatIntoContainer;
 
 
 
-window.addEventListener("DOMContentLoaded", async () => {
+window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const chatId = params.get("chat");
 
   if (chatId) {
-    console.log("🔗 Chat link detected:", chatId);
-    await loadChatIntoContainer(chatId);
+    // Wait for Auth before loading the chat from URL
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        sessionStorage.setItem("userUID", user.uid);
+        await loadChatIntoContainer(chatId);
+      }
+    });
   }
 });
 
 
 
 
+// Wait for Firebase Auth before touching Firestore
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // Sync session so everything downstream has the UID
+      sessionStorage.setItem("userUID", user.uid);
+      sessionStorage.setItem("userEmail", user.email || "");
+      localStorage.setItem("userUID", user.uid);
+      localStorage.setItem("userEmail", user.email || "");
 
-  // Initial load
-  loadChatHistory();
+      loadChatHistory();
+    }
+  });
 
   // Optional: Refresh chat list automatically when a new chat starts
   window.refreshChatHistory = loadChatHistory;

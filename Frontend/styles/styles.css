@@ -2312,3 +2312,81 @@ html, body {
     transform: translateY(0);
   }
 }
+
+/* ── Code Block Wrapper ── */
+.ai-codeblock {
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+  font-family: 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+}
+
+/* ── Code Block Header Bar (language + copy button) ── */
+.ai-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #161b22;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-code-lang {
+  font-size: 0.78rem;
+  color: #8b949e;
+  font-family: 'Exo 2', sans-serif;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+}
+
+/* ── Copy Code Button ── */
+.ai-code-copy-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #8b949e;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: 'Exo 2', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.ai-code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.ai-code-copy-btn.copied {
+  color: #3fb950;
+  border-color: #3fb950;
+}
+
+/* ── The actual code area ── */
+.ai-codeblock pre {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  background: transparent;
+}
+
+.ai-codeblock pre code {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  font-family: 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* ── Inline code (inside sentences) ── */
+.ai-inline-code {
+  background: rgba(110, 118, 129, 0.2);
+  border: 1px solid rgba(110, 118, 129, 0.3);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  font-size: 0.85em;
+  color: #e6edf3;
+}
