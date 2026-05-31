@@ -458,36 +458,13 @@ function renderHumanizeBubbleFromHistory(rawContent, chatContainer) {
   const bubble = document.createElement("div");
   bubble.classList.add("chat-bubble", "ai", "humanizer-ai");
 
-  function escapeHTML(str = "") {
-    return str
-      .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  // ✅ Use the full renderer from ai.js which has Highlight.js
+  if (typeof window.renderAIMessageToHTML === "function") {
+    bubble.innerHTML = window.renderAIMessageToHTML(rawContent);
+  } else {
+    bubble.textContent = rawContent;
   }
 
-  function simpleRender(text) {
-    const parts = String(text).split(/```/g);
-    let html = `<div class="ai-rich">`;
-    parts.forEach((chunk, i) => {
-      if (i % 2 === 0) {
-        const safe = escapeHTML(chunk).trim();
-        if (safe) {
-          safe.split(/\n\s*\n/).forEach(p => {
-            html += `<p class="ai-text">${p.replace(/\n/g, "<br>").trim()}</p>`;
-          });
-        }
-      } else {
-        let code = chunk, lang = "";
-        const nl = code.indexOf("\n");
-        if (nl !== -1) { lang = code.slice(0, nl).trim(); code = code.slice(nl + 1); }
-        html += `<div class="ai-codeblock">${lang ? `<div class="ai-code-lang">${escapeHTML(lang)}</div>` : ""}<pre><code>${escapeHTML(code.trim())}</code></pre></div>`;
-      }
-    });
-    html += `</div>`;
-    return html;
-  }
-
-  bubble.innerHTML = simpleRender(rawContent);
   wrapper.appendChild(avatarEl);
   wrapper.appendChild(bubble);
   chatContainer.appendChild(wrapper);
@@ -550,23 +527,44 @@ async function loadChatIntoContainer(chatId) {
       } else if (sender === "ai" && type === "humanize") {
         renderHumanizeBubbleFromHistory(msg.content, chatContainer);
 
-      } else {
-        let bubble = null;
+} else if (sender === "ai") {
+  // ✅ Regular AI chat messages — render with full syntax highlighting
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("chat-wrapper", "ai");
 
-        if (typeof window.createBubble === "function") {
-          bubble = window.createBubble(msg.content, sender);
-        } else if (typeof createBubble === "function") {
-          bubble = createBubble(msg.content, sender);
-        } else {
-          const fallback = document.createElement("div");
-          fallback.textContent = `${sender}: ${msg.content}`;
-          chatContainer.appendChild(fallback);
-        }
+  const avatarEl = document.createElement("div");
+  avatarEl.className = "avatar";
+  avatarEl.style.backgroundImage = "url('Images/veri-logo.png')";
 
-        if (bubble && msg.metadata?.systemMessage) {
-          bubble.classList.add("system-message");
-        }
-      }
+  const bubble = document.createElement("div");
+  bubble.classList.add("chat-bubble", "ai");
+
+  if (typeof window.renderAIMessageToHTML === "function") {
+    bubble.innerHTML = window.renderAIMessageToHTML(msg.content);
+  } else {
+    bubble.textContent = msg.content;
+  }
+
+  wrapper.appendChild(avatarEl);
+  wrapper.appendChild(bubble);
+  chatContainer.appendChild(wrapper);
+
+} else {
+  // User messages — plain text as before
+  let bubble = null;
+
+  if (typeof window.createBubble === "function") {
+    bubble = window.createBubble(msg.content, sender);
+  } else {
+    const fallback = document.createElement("div");
+    fallback.textContent = `${sender}: ${msg.content}`;
+    chatContainer.appendChild(fallback);
+  }
+
+  if (bubble && msg.metadata?.systemMessage) {
+    bubble.classList.add("system-message");
+  }
+}
 
       window.currentChatMessages.push({
         sender,

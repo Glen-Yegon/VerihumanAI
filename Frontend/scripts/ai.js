@@ -1905,16 +1905,22 @@ async function init() {
             aiBubble.classList.add("detect-result");
           }
 
-        } else if (sender === "ai" && type === "humanize") {
-          const aiBubble = createBubble("", "ai");
-          aiBubble.innerHTML = renderAIMessageToHTML(m.text);
-          aiBubble.classList.add("humanizer-ai");
-          addCopyButton(aiBubble);
+          } else if (sender === "ai" && type === "humanize") {
+            const aiBubble = createBubble("", "ai");
+            aiBubble.innerHTML = renderAIMessageToHTML(m.text);
+            aiBubble.classList.add("humanizer-ai");
+            addCopyButton(aiBubble);
 
-        } else {
-          const bubble = createBubble(m.text, sender);
-          if (m.metadata?.systemMessage) bubble.classList.add("system-message");
-        }
+          } else if (sender === "ai") {
+            // ✅ All regular AI messages — render with full syntax highlighting
+            const aiBubble = createBubble("", "ai");
+            aiBubble.innerHTML = renderAIMessageToHTML(m.text);
+            addCopyButton(aiBubble);
+
+          } else {
+            const bubble = createBubble(m.text, sender);
+            if (m.metadata?.systemMessage) bubble.classList.add("system-message");
+          }
 
         addMessage(sender, m.text);
       });
@@ -2068,6 +2074,7 @@ setTimeout(() => {
   window.addMessage = addMessage;
   window.typeText = typeText;
   window.scrollToBottom = scrollToBottom;
+  window.renderAIMessageToHTML = renderAIMessageToHTML; // ✅ expose for scripts.js
 
 
 
