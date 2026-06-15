@@ -177,6 +177,7 @@ const chatForm = document.getElementById("chatForm");
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault(); // ✅ Prevent the default form submission
   if (!chatInput.value.trim()) return; // ignore empty messages
+  removeGreetingBubble(); // ADD THIS LINE
   await handleSend(); // call your existing send function
 });
 
@@ -1756,41 +1757,173 @@ runHumanizerBtn.addEventListener("click", async () => {
   }
 });
 
-// ------------------------
-// GREETING BUBBLE
-// ------------------------
+// ==========================================
+// GREETING SYSTEM - TIME-AWARE, PERSONALIZED
+// ==========================================
+
+const GREETING_DATABASE = {
+  morning: [
+    { main: "Rise and Shine, {name}! ☀️", sub: "Let's make today extraordinary." },
+    { main: "Good Morning! ✨", sub: "Ready to accomplish something great, {name}?" },
+    { main: "Fresh Start, {name} 🌅", sub: "What's on your mind today?" },
+    { main: "The Day is Yours, {name} 💪", sub: "Let's make every moment count." },
+    { main: "Hello, Morning Person! 🌞", sub: "What can I help you with today, {name}?" },
+    { main: "Greetings, {name}! 🌄", sub: "Coffee brewing? Let's get to work." },
+    { main: "Dawn Has Arrived, {name} 🌇", sub: "Ready to create something brilliant?" },
+    { main: "Good Morning, {name}! ☀️", sub: "New day, new possibilities." },
+    { main: "Rise Up, {name}! 🚀", sub: "Today's success starts now." },
+    { main: "Welcome Back, {name}! 🌅", sub: "Let's build something amazing." },
+    { main: "Bright and Early, {name}! ✨", sub: "What's your first move?" },
+    { main: "A Beautiful Morning, {name}! 🌸", sub: "Ready to make an impact?" },
+    { main: "Good Morning! 🎯", sub: "Let's dive into what matters, {name}." },
+    { main: "Wakey Wakey, {name}! 👀", sub: "The day awaits your brilliance." },
+    { main: "Welcome to Your Day, {name}! 🌟", sub: "Let's write an amazing story." }
+  ],
+  afternoon: [
+    { main: "How's Your Day Treating You, {name}? 🌤️", sub: "Let's keep the momentum going." },
+    { main: "Afternoon, {name}! 💫", sub: "Still crushing it?" },
+    { main: "Middle of the Day Check-In! ⏰", sub: "What can I help with, {name}?" },
+    { main: "Halfway Through, {name}! 🎯", sub: "Let's finish strong." },
+    { main: "Good Afternoon! 🌞", sub: "Ready for round two, {name}?" },
+    { main: "Afternoon Vibes, {name}! 🌊", sub: "What's next on your agenda?" },
+    { main: "Still Going Strong, {name}? 💪", sub: "Let's make it count." },
+    { main: "Peak Hours Are Here, {name}! ⚡", sub: "What can I assist with?" },
+    { main: "Afternoon Energy! 🔥", sub: "Time to elevate, {name}." },
+    { main: "Welcome Back, {name}! ☕", sub: "Coffee break over? Let's go!" },
+    { main: "The Afternoon Calls, {name}! 📢", sub: "Ready for the next task?" },
+    { main: "Mid-Day Magic, {name}! ✨", sub: "What can I help unlock?" },
+    { main: "Afternoon Momentum! 🚀", sub: "Let's build on what's working, {name}." },
+    { main: "Day's Not Over Yet, {name}! 🎪", sub: "Ready to seize it?" },
+    { main: "Daylight Still on Our Side! 💡", sub: "What's next, {name}?" }
+  ],
+  evening: [
+    { main: "Golden Hour, {name}! 🌅", sub: "As the sun sets, what can we accomplish?" },
+    { main: "Evening Greetings, {name}! 🌆", sub: "Ready to wrap up or push forward?" },
+    { main: "It's Getting Beautiful Out There, {name}! 🌇", sub: "What's on your mind?" },
+    { main: "Evening Mode Activated! 🌙", sub: "Let's make the most of it, {name}." },
+    { main: "As Day Becomes Night, {name}! ✨", sub: "One more push for greatness?" },
+    { main: "The Evening is Here, {name}! 🎭", sub: "What's your next move?" },
+    { main: "Sunset Vibes, {name}! 🌄", sub: "Ready for evening productivity?" },
+    { main: "Welcome to the Evening, {name}! 🔮", sub: "The night is young, full of possibilities." },
+    { main: "Evening Energy Awaits! ⚡", sub: "What can I help you craft, {name}?" },
+    { main: "Dusk Has Arrived, {name}! 🌌", sub: "Ready to shine in the evening?" },
+    { main: "The Day's Finale Begins, {name}! 🎬", sub: "One last chapter, or many more?" },
+    { main: "Evening, Dear {name}! 💝", sub: "Let's create something extraordinary." },
+    { main: "As Light Fades, Your Ideas Shine, {name}! 💫", sub: "What's brewing in that mind?" },
+    { main: "Evening Mode Unlocked! 🔑", sub: "Ready to make waves, {name}?" },
+    { main: "The Twilight Hour, {name}! 🌅", sub: "Perfect time for focused work." }
+  ],
+  night: [
+    { main: "It's Getting Late, {name}... 🌙", sub: "But greatness doesn't sleep. What's on your mind?" },
+    { main: "Moonlit Chat, {name}? ✨", sub: "The night is quiet. Let's create something special." },
+    { main: "The Witching Hour Approaches, {name}! 🌑", sub: "Still working on something brilliant?" },
+    { main: "Late Night Greetings, {name}! 🦉", sub: "I admire the late-night hustle. What's next?" },
+    { main: "Past Midnight, {name}! 💤", sub: "Sleep calling or passion driving?" },
+    { main: "3 AM Thoughts, {name}? 🌌", sub: "The best ideas come at night." },
+    { main: "Night Owl Mode: ON 🌙", sub: "Let's build something monumental, {name}." },
+    { main: "Deep Night Sessions, {name}! ✨", sub: "When genius speaks, listening." },
+    { main: "The World Sleeps, You Rise, {name}! 🚀", sub: "What's your midnight masterpiece?" },
+    { main: "Nocturnal Vibes, {name}! 🌃", sub: "Ready to create some magic?" },
+    { main: "It's Late, {name}—But Are You Done? 🔥", sub: "Passion doesn't watch the clock." },
+    { main: "Burning the Midnight Oil, {name}? 🕯️", sub: "I'm here to help you shine." },
+    { main: "The Silence of Night, {name}... 🌙", sub: "Perfect canvas for your ideas." },
+    { main: "After Hours Brilliance, {name}! 💡", sub: "The night is your stage." },
+    { main: "Starlight & You, {name}! ⭐", sub: "Let's create under the moonlight." },
+    { main: "Late Night Grind, {name}? 💪", sub: "I see that dedication. What's next?" },
+    { main: "The Night is Young (Or Old), {name}! 🌙", sub: "Ready to innovate?" },
+    { main: "It's Quiet Now, {name}... 🌌", sub: "The best work happens in silence." },
+    { main: "Nocturnal Dreams, {name}! ✨", sub: "Let's turn them into reality." },
+    { main: "When the City Sleeps, You Create, {name}! 🏙️", sub: "That's the spirit of a visionary." }
+  ],
+  generic: [
+    { main: "Welcome, {name}! 🎯", sub: "Ready to make things happen?" },
+    { main: "Hey There, {name}! 👋", sub: "What can I help you create today?" },
+    { main: "{name}, You've Got This! 💪", sub: "Let's do something amazing." },
+    { main: "Great to See You, {name}! ✨", sub: "What's on your agenda?" },
+    { main: "Hello, {name}! 🌟", sub: "Time to make an impact." },
+    { main: "Welcome Back, {name}! 🚀", sub: "Ready for something great?" },
+    { main: "{name}—Let's Create Magic! ✨", sub: "The world is waiting." }
+  ]
+};
+
+function getTimeOfDay() {
+  const hour = new Date().getHours();
+  
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 21) return 'evening';
+  return 'night'; // 21:00 to 5:00
+}
+
+function selectGreeting(name) {
+  const timeOfDay = getTimeOfDay();
+  const greetingsArray = GREETING_DATABASE[timeOfDay];
+  
+  // Pick a random greeting from the time-appropriate array
+  const greeting = greetingsArray[Math.floor(Math.random() * greetingsArray.length)];
+  
+  // Personalize with name
+  const main = greeting.main.replace('{name}', name || 'there');
+  const sub = greeting.sub.replace('{name}', name || 'there');
+  
+  return { main, sub };
+}
+
 function showGreetingBubble(name) {
-  const greeting = document.createElement("div");
-  greeting.id = "greeting-bubble-wrapper";
-  greeting.className = "chat-wrapper ai";
+  const existing = document.getElementById("greeting-container");
+  if (existing) existing.remove();
 
-  const avatar = document.createElement("div");
-  avatar.className = "avatar";
-  avatar.style.backgroundImage = "url('Images/veri-logo.png')";
+  const container = document.createElement("div");
+  container.id = "greeting-container";
+  container.className = "greeting-container";
 
-  const bubble = document.createElement("div");
-  bubble.className = "chat-bubble ai";
-  bubble.id = "greeting-bubble";
-  bubble.style.whiteSpace = "pre-wrap";
-  bubble.style.wordBreak = "break-word";
+  const content = document.createElement("div");
+  content.className = "greeting-content";
 
-  greeting.appendChild(avatar);
-  greeting.appendChild(bubble);
-  chatContainer.appendChild(greeting);
+  const { main, sub } = selectGreeting(name);
 
-  const displayName = name ? name.split(" ")[0] : "there"; // first name only for warmth
-  const fullGreeting = `Hey ${name || "there"}! 👋\nHow can I help you today?`;
+  const mainEl = document.createElement("h1");
+  mainEl.className = "greeting-main-text";
+  mainEl.textContent = main;
 
-  typeText(bubble, fullGreeting);
-  scrollToBottom();
+  const subEl = document.createElement("p");
+  subEl.className = "greeting-subtext";
+  subEl.textContent = sub;
+
+  const ctaEl = document.createElement("p");
+  ctaEl.className = "greeting-cta";
+  ctaEl.textContent = "Send a message to dismiss →";  // ✅ CHANGED TEXT
+
+  content.appendChild(mainEl);
+  content.appendChild(subEl);
+  content.appendChild(ctaEl);
+  container.appendChild(content);
+
+  document.body.appendChild(container);
+
+  container.addEventListener("click", () => {
+    removeGreetingBubble();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") removeGreetingBubble();
+  });
+
+  // ✅ TIMEOUT REMOVED - No auto-dismiss anymore
+  window.greetingActive = true;  // ✅ ADDED: Track that greeting is active
 }
 
 function removeGreetingBubble() {
-  const el = document.getElementById("greeting-bubble-wrapper");
-  if (el) {
-    el.style.transition = "opacity 0.3s ease";
-    el.style.opacity = "0";
-    setTimeout(() => el.remove(), 300);
+  const el = document.getElementById("greeting-container");
+  if (el && !el.classList.contains("exit-triggered")) {
+    el.classList.add("exit-triggered");
+    el.querySelector(".greeting-content")?.classList.add("exit");
+    
+    window.greetingActive = false;  // ✅ ADDED: Mark greeting as dismissed
+    
+    setTimeout(() => {
+      el.remove();
+    }, 600);
   }
 }
 
@@ -1935,20 +2068,16 @@ async function init() {
     } else {
       // ─────────────────────────────────────────
       // FRESH VISIT (tab closed + reopened)
-      // Start new chat + show greeting
+      // DON'T create doc yet - only create on first user interaction
       // ─────────────────────────────────────────
       chatContainer.innerHTML = "";
       currentChatMessages = [];
       sessionStorage.removeItem("currentChatId");
 
-      // ✅ Create a real Firestore doc immediately so this session has a proper ID
-      const freshChatId = await createNewChatDoc(userUID, "New Conversation");
-      window.currentChatId = freshChatId;
-      window.isNewConversation = false; // already has a doc, no need to force-create later
-
-      if (freshChatId) {
-        sessionStorage.setItem("currentChatId", freshChatId);
-      }
+      // 🔥 CHANGED: Don't create a Firestore doc yet
+      // Only create when user sends first message/detection/humanizer
+      window.currentChatId = null;
+      window.isNewConversation = true;  // Flag to create doc on first interaction
 
       currentMode = "chat";
       modeButtons.forEach(btn => {
@@ -2169,7 +2298,7 @@ fileInput.addEventListener("change", (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
 
-  // Append new picks (you can also replace instead of append if you prefer)
+  // Append new picks
   selectedFiles = selectedFiles.concat(files);
 
   renderAttachmentsPreview();
@@ -2184,20 +2313,18 @@ function renderAttachmentsPreview() {
     const chip = document.createElement("div");
     chip.className = "attachment-chip";
 
-    // Thumbnail for images
+    // Thumbnail for images only
     let thumbHTML = "";
     if (file.type.startsWith("image/")) {
       const url = URL.createObjectURL(file);
       thumbHTML = `<img src="${url}" alt="attachment" />`;
     } else {
-      thumbHTML = `<div style="width:34px;height:34px;border-radius:8px;background:#8ab6f9;display:flex;align-items:center;justify-content:center;font-family:Exo 2,sans-serif;color:#00246b;">DOC</div>`;
+      // For documents, just show a small icon badge
+      thumbHTML = `<div style="width:34px;height:34px;border-radius:8px;background:#8ab6f9;display:flex;align-items:center;justify-content:center;font-size:18px;">📄</div>`;
     }
 
     chip.innerHTML = `
       ${thumbHTML}
-      <div style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        ${file.name}
-      </div>
       <button type="button" class="attachment-remove" aria-label="Remove file">×</button>
     `;
 
