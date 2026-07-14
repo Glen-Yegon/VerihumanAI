@@ -1892,7 +1892,7 @@ function showGreetingBubble(name) {
 
   const ctaEl = document.createElement("p");
   ctaEl.className = "greeting-cta";
-  ctaEl.textContent = "Send a message to dismiss →";  // ✅ CHANGED TEXT
+  ctaEl.textContent = "Type anything. I'll figure it out. →";  // ✅ CHANGED TEXT
 
   content.appendChild(mainEl);
   content.appendChild(subEl);
