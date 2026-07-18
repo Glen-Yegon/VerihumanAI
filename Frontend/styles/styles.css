@@ -304,6 +304,7 @@ html, body {
   }
     .mobile-header {
         display: flex; /* Show mobile header only on small screens */
+        z-index: 999999 !important;
     }
     main {
         padding: 0px;
@@ -311,12 +312,12 @@ html, body {
 
 }
 
-  main {
-    position: relative;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-  }
+main {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
 
 
 /* Fullscreen Matrix Canvas */
@@ -603,54 +604,72 @@ html, body {
     }
 }
 
-/* Outer chat section (can hold other elements too) */
+/* Chat wrapper */
 .chat-section {
   position: relative;
   display: flex;
-  justify-content: center; /* Center chat horizontally */
-  padding: 0px;
+  justify-content: center;
   width: 100%;
-  height: auto; /* Can grow with content */
-  z-index: 9999;
+  height: 100%;
+  z-index: 100;
 }
 
+
+/* Chat container */
 .chat-container {
-  position: fixed;
+  position: absolute;
+
+  z-index: 100;
+
   max-width: 65vw;
   max-height: 80vh;
+
   overflow-y: auto;
+
   display: flex;
   flex-direction: column;
   gap: 10px;
+
   padding: 10px;
+
   scrollbar-width: thin;
   scrollbar-color: #8ab6f9 transparent;
+
   overscroll-behavior: contain;
   background: transparent;
+
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 768px) {
-  #chat-container {
-    max-width: 100%;
-    bottom: calc(120px + env(safe-area-inset-bottom));
-  }
-}
 
-@media (max-width: 468px) {
-  #chat-container {
-    padding: 16px 12px;
-    bottom: calc(120px + env(safe-area-inset-bottom));
-  }
-}
-
+/* Mobile */
 @media (max-width: 768px) {
+
   .chat-container {
-    max-height: 75vh;
+    max-width: 100%;
+    max-height: 90vh;
+    bottom: calc(120px + env(safe-area-inset-bottom));
+    z-index: 100;
   }
+
 }
 
+
+/* Small phones */
+@media (max-width: 468px) {
+
+  .chat-container {
+    padding: 18px 12px;
+    bottom: calc(120px + env(safe-area-inset-bottom));
+    max-height: 90vh;
+    margin-bottom: 70px;
+    z-index: 100;
+  }
+
+}
+
+/* Tablets */
 @media (min-width: 769px) and (max-width: 1024px) {
   .chat-container {
     max-height: 80vh;
@@ -750,13 +769,6 @@ html, body {
 @keyframes blink-cursor {
   0%, 50%, 100% { opacity: 0; }
   25%, 75% { opacity: 1; }
-}
-
-/* Mobile view */
-@media (max-width: 768px) {
-  .chat-container {
-    max-width: 100%;
-  }
 }
 
 
