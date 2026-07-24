@@ -660,8 +660,8 @@ main {
 @media (max-width: 468px) {
 
   .chat-container {
-    padding: 18px 12px 40px; /* Extra bottom padding */
-    bottom: calc(10px + env(safe-area-inset-bottom)); /* Raised by 20px */
+    padding: 18px 12px 120px;
+    bottom: calc(120px + env(safe-area-inset-bottom));
     max-height: 78vh;
     margin-bottom: 80px;
     z-index: 100;
