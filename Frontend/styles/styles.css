@@ -661,7 +661,7 @@ main {
 
   .chat-container {
     padding: 18px 12px 40px; /* Extra bottom padding */
-    bottom: calc(140px + env(safe-area-inset-bottom)); /* Raised by 20px */
+    bottom: calc(10px + env(safe-area-inset-bottom)); /* Raised by 20px */
     max-height: 78vh;
     margin-bottom: 80px;
     z-index: 100;
