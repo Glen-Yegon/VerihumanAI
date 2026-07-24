@@ -102,6 +102,10 @@ SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USER)
 
 API_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-nano")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Capability-routed chat models (Chat endpoint only)
+CHAT_MODEL_STANDARD = os.getenv("CHAT_MODEL_STANDARD", "gpt-5.4")
+CHAT_MODEL_VISION = os.getenv("CHAT_MODEL_VISION", "gpt-5.4")
+CHAT_MODEL_THINKING = os.getenv("CHAT_MODEL_THINKING", "o3")
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "../Frontend")  # relative path from backend folder
 
 # Hybrid behavior
@@ -2511,6 +2515,165 @@ async def health():
 
 
 
+# ------------------------
+# CHAT MODEL ROUTING (Chat endpoint only)
+# ------------------------
+
+_REASONING_KEYWORDS = {
+    "prove", "derive", "theorem", "algorithm", "big o", "time complexity",
+    "space complexity", "optimize", "optimization", "recursion", "recurrence",
+    "dynamic programming", "np-hard", "np-complete", "matrix", "eigenvalue",
+    "integral", "derivative", "differential equation", "combinatorics",
+    "probability distribution", "step by step", "step-by-step", "walk me through",
+    "plan out", "architecture design", "system design", "edge cases",
+    "counterexample", "logical proof", "solve for", "simplify the expression",
+    "big-o", "asymptotic", "greedy algorithm", "graph traversal",
+    "shortest path", "minimum spanning tree", "state space search",
+}
+
+_MATH_PATTERN = re.compile(r"\d+\s*[\+\-\*/\^=]\s*\d+")
+
+def classify_chat_capability(text: str, has_image: bool) -> str:
+    """
+    Lightweight, deterministic capability classifier for the Chat endpoint.
+    Returns one of: "vision", "reasoning", "standard".
+    No LLM call — pure heuristics so routing stays fast and cheap.
+    """
+    if has_image:
+        return "vision"
+
+    t = (text or "").lower()
+
+    # Keyword match for deep-reasoning tasks
+    if any(kw in t for kw in _REASONING_KEYWORDS):
+        return "reasoning"
+
+    # Inline math expressions (e.g. "solve 3x + 5 = 20")
+    if _MATH_PATTERN.search(t):
+        return "reasoning"
+
+    # Long, multi-part analytical asks tend to need more reasoning depth
+    word_count = len(t.split())
+    if word_count > 120 and ("why" in t or "explain" in t or "analyze" in t):
+        return "reasoning"
+
+    return "standard"
+
+
+_CHAT_MODEL_MAP = {
+    "standard": CHAT_MODEL_STANDARD,
+    "vision": CHAT_MODEL_VISION,
+    "reasoning": CHAT_MODEL_THINKING,
+}
+
+# ------------------------
+# ADAPTIVE RESPONSE LENGTH (Chat endpoint only)
+# ------------------------
+
+_GREETING_PHRASES = {
+    "hi", "hello", "hey", "yo", "sup", "what's up", "whats up", "how are you",
+    "how's it going", "hows it going", "thanks", "thank you", "thx", "ok", "okay",
+    "cool", "nice", "lol", "haha",
+}
+
+# Trivial one-off asks: quick math, "tell me a fact", etc.
+_TRIVIAL_PATTERN = re.compile(
+    r"^\d+\s*[\+\-\*/]\s*\d+\s*[\?]?$|tell me (a|one) (fun )?fact"
+)
+
+_LONG_LENGTH_KEYWORDS = {
+    "tutorial", "step by step guide", "step-by-step guide", "full guide", "complete guide",
+    "business plan", "essay", "write an article", "write a blog post", "research paper",
+    "in depth", "in-depth", "comprehensive", "detailed walkthrough", "detailed explanation",
+    "explain in detail", "deep dive",
+}
+
+_MEDIUM_LENGTH_KEYWORDS = {
+    "explain", "how does", "how do", "why does", "why is", "compare", "comparison",
+    "difference between", "debug", "fix this code", "summarize", "summary",
+    "business advice", "pros and cons",
+}
+
+_SHORT_LENGTH_KEYWORDS = {
+    "advice", "recommend", "recommendation", "suggest", "should i", "relationship",
+    "productivity", "tip", "tips", "opinion", "thoughts on",
+}
+
+def classify_response_length(text: str, capability: str) -> str:
+    """
+    Lightweight, deterministic response-length classifier for the Chat endpoint.
+    Returns one of: "very_short", "short", "medium", "long".
+    No LLM call — pure heuristics, independent of model routing.
+    """
+    t = (text or "").strip().lower()
+    if not t:
+        return "short"
+
+    word_count = len(t.split())
+
+    # Very short: greetings, thanks, trivial one-liners
+    if word_count <= 4 and t in _GREETING_PHRASES:
+        return "very_short"
+    if _TRIVIAL_PATTERN.search(t):
+        return "very_short"
+
+    # Long: explicit deep-content requests, or just a long message
+    if any(kw in t for kw in _LONG_LENGTH_KEYWORDS) or word_count > 70:
+        return "long"
+
+    # Medium: explanations, technical asks, or anything routed to the reasoning model
+    if capability == "reasoning" or any(kw in t for kw in _MEDIUM_LENGTH_KEYWORDS):
+        return "medium"
+
+    # Short: advice/recommendation-style questions, or general short asks
+    if any(kw in t for kw in _SHORT_LENGTH_KEYWORDS) or word_count <= 25:
+        return "short"
+
+    return "medium"
+
+
+# ------------------------
+# CHAT PERSONALITY + FORMATTING (Chat endpoint only)
+# ------------------------
+
+_CHAT_BASE_PERSONALITY = (
+    "You are a sharp, friendly conversational partner — think intelligent human, not corporate assistant. "
+    "Skip filler openers like 'Great question!' or 'Certainly!'. Don't repeat what the user just said back to them. "
+    "Show empathy naturally when the topic calls for it, without being saccharine. "
+    "When it's genuinely useful, ask one short follow-up question instead of guessing. "
+    "Explain complex ideas in plain language before adding technical detail. "
+    "Stay warm and direct — professional, but never stiff or robotic. Never sound repetitive."
+)
+
+_CHAT_FORMATTING_RULES = (
+    "Formatting guidelines:\n"
+    "- Prefer plain, natural writing over heavy markdown.\n"
+    "- Avoid excessive headings; only use one if it genuinely helps organize a long answer.\n"
+    "- Keep paragraphs short and readable.\n"
+    "- Use bullet lists when they genuinely improve readability, not by default.\n"
+    "- Use numbered steps only when explaining a process or sequence.\n"
+    "- Never cram everything into a single wall-of-text paragraph.\n"
+    "- Code must always be wrapped in fenced code blocks with the correct language, "
+    "even a single line, e.g. ```python\\nprint('hello')\\n```.\n"
+    "- Keep formatting clean, simple, and human — it should aid readability, not replace it."
+)
+
+_CHAT_LENGTH_INSTRUCTIONS = {
+    "very_short": "Answer naturally in one or two short sentences. Keep it under roughly 60 words unless more detail is truly necessary.",
+    "short": "Keep the response concise and useful, usually under about 150 words.",
+    "medium": "Provide enough explanation to fully answer the question without becoming unnecessarily long.",
+    "long": "Provide a comprehensive, well-structured explanation with enough depth to be genuinely useful.",
+}
+
+# Hard ceiling per length mode — keeps short answers from running long, cuts latency
+_LENGTH_MAX_TOKENS = {
+    "very_short": 120,
+    "short": 300,
+    "medium": 700,
+    "long": 1500,
+}
+
+
 @app.post("/api/chat")
 async def chat(
     request: Request,
@@ -2575,7 +2738,20 @@ async def chat(
                 "text": "Here is extracted text from attached documents:" + "".join(doc_text_blobs)
             })
 
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4.1")
+        # Detect whether any image was attached (vision takes priority)
+        has_image = any(
+            isinstance(item, dict) and item.get("type") == "image_url"
+            for item in user_content
+        )
+
+        # Route: standard / vision / reasoning — capability-based, not topic-based
+        capability = classify_chat_capability(user_text, has_image)
+        model_name = _CHAT_MODEL_MAP[capability]
+        # Classify how long the response should be — independent of which model answers
+        length_mode = classify_response_length(user_text, capability)
+        # Cap generation length by mode (never exceed what the client explicitly requested)
+        max_tokens = min(max_tokens, _LENGTH_MAX_TOKENS[length_mode])
+            
 
         # Parse conversation history sent from frontend
         conversation_history = []
@@ -2598,22 +2774,13 @@ async def chat(
         messages_to_send = conversation_history[:-1] if conversation_history else []  # exclude last (current msg already in user_content)
         messages_to_send.append({"role": "user", "content": user_content})
 
+# Build the final system prompt: personality + formatting + adaptive length instruction
         CHAT_SYSTEM_PROMPT = (
-            "You are a helpful, conversational AI assistant. "
-            "Follow these formatting rules strictly:\n\n"
-            
-            "FOR CODE: Always wrap any code — no matter how short — in triple backticks with the language name. "
-            "For example: ```python\nprint('hello')\n``` or ```javascript\nconsole.log('hi')\n```. "
-            "Never write code inline as plain text. Even a single line of code must be in a code block.\n\n"
-            
-            "FOR TEXT: Write in plain flowing sentences and paragraphs. "
-            "Do NOT use asterisks for bold or italic. "
-            "Do NOT use # for headings. "
-            "Do NOT use hyphens or dashes to make bullet lists. "
-            "Do NOT use numbered lists with dots like '1.' or '2.'. "
-            "If you need to list things, write them naturally in a sentence separated by commas, "
-            "or put each item on its own line without any bullet symbol. "
-            "Write the way a human would speak — clear, direct, and natural."
+            _CHAT_BASE_PERSONALITY
+            + "\n\n"
+            + _CHAT_FORMATTING_RULES
+            + "\n\nResponse length: "
+            + _CHAT_LENGTH_INSTRUCTIONS[length_mode]
         )
 
         async def token_stream():
@@ -2621,7 +2788,7 @@ async def chat(
                 stream = await client.chat.completions.create(
                     model=model_name,
                     messages=[{"role": "system", "content": CHAT_SYSTEM_PROMPT}] + messages_to_send,
-                    max_tokens=max_tokens,
+                    max_completion_tokens=max_tokens,
                     stream=True,
                 )
                 async for chunk in stream:

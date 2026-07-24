@@ -646,10 +646,12 @@ main {
 /* Mobile */
 @media (max-width: 768px) {
 
-  .chat-container {
+.chat-container {
+    top: 12px;
+    bottom: calc(200px + env(safe-area-inset-bottom));
     max-width: 100%;
-    max-height: 90vh;
-    bottom: calc(120px + env(safe-area-inset-bottom));
+    max-height: none;
+    font-size: clamp(0.85rem, 2.2vh, 0.95rem);
     z-index: 100;
   }
 
@@ -659,11 +661,12 @@ main {
 /* Small phones */
 @media (max-width: 468px) {
 
-  .chat-container {
-    padding: 18px 12px 120px;
-    bottom: calc(120px + env(safe-area-inset-bottom));
-    max-height: 78vh;
-    margin-bottom: 80px;
+.chat-container {
+    top: 8px;
+    bottom: calc(180px + env(safe-area-inset-bottom));
+    padding: 14px 10px;
+    max-height: none;
+    font-size: clamp(0.8rem, 2.4vh, 0.9rem);
     z-index: 100;
   }
 
@@ -705,38 +708,65 @@ main {
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 
-/* AI Bubble */
 .chat-bubble.ai {
   align-self: flex-start;
-  background: rgba(0, 36, 107, 0.8);
-  color: #cadcfc;
-  border: 1px solid #8ab6f9;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  backdrop-filter: blur(8px);
-}
 
+  background: rgba(24, 35, 56, 0.72);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+  color: #f8fbff;
+
+  border: 1px solid rgba(138, 182, 249, 0.14);
+  border-left: 6px solid #5b8cff;
+  border-radius: 12px;
+
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  padding: 14px;
+
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.65;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
 /* SCAN effect for AI */
 .chat-bubble.scanning::after {
   content: "";
   position: absolute;
-  top: -50%;
-  left: 0;
-  width: 100%;
-  height: 200%;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
   background: linear-gradient(
-    to bottom,
+    90deg,
     transparent 0%,
-    rgba(0, 255, 255, 0.3) 50%,
+    rgba(79, 124, 255, 0.12) 50%,
     transparent 100%
   );
-  animation: scanMotion 2s linear infinite, glowPulse 1.5s ease-in-out infinite;
+  animation: scanSweep 1.8s ease-in-out infinite;
   pointer-events: none;
   z-index: 2;
 }
 
 .chat-bubble.scanning {
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5), 0 0 25px rgba(0, 255, 255, 0.3);
-  border-color: rgba(0, 255, 255, 0.7);
+  border-top-color: #4f7cff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes scanSweep {
+  0% { left: -60%; }
+  100% { left: 100%; }
 }
 
 /* Scan animation */
@@ -1479,36 +1509,86 @@ main {
   display: none !important;
 }
 
+.detector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+background: rgba(255, 255, 255, 0.04);
+-webkit-backdrop-filter: blur(16px);
+backdrop-filter: blur(16px);
+border: 1px solid rgba(255, 255, 255, 0.08);
+
+  border: 1px solid rgba(255, 193, 7, 0.12);
+  border-top: 2px solid #d4a017;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.detector-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detector-panel-label {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #d4a017;
+}
+
 /* ---------------------------- */
 /* Textarea */
 /* ---------------------------- */
 #detect-input {
-  width: 100vw;
+  width: 100%;
   max-width: 100%;
-  min-height: 275px; /* big jump in height */
+  min-height: 275px;
   padding: 24px;
-  font-size: 1.25rem; /* more comfortable typing size */
+
+  font-size: 1.25rem;
   line-height: 1.6;
   font-family: 'Exo 2', sans-serif;
 
-  color: #cadcfc;
-  background: rgba(0, 36, 107, 0.35);
+  color: #f4eedf;
 
-  border: 2px solid #8ab6f9;
+  background: rgba(22, 18, 12, 0.45);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+
+  border: 1px solid rgba(255, 193, 7, 0.10);
+  border-top: 2px solid rgba(212, 160, 23, 0.85);
   border-radius: 10px;
 
-  backdrop-filter: blur(5px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 6px 18px rgba(0, 0, 0, 0.18);
 
   resize: vertical;
   outline: none;
-
-  transition: all 0.25s ease;
   box-sizing: border-box;
+
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
 }
 
 #detect-input:focus {
-  border-color: #cadcfc;
-  box-shadow: 0 0 16px rgba(202, 220, 252, 0.75);
+  background: rgba(28, 24, 16, 0.60);
+  border-color: rgba(212, 160, 23, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 3px rgba(212, 160, 23, 0.08),
+    0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+#detect-input::placeholder {
+  color: rgba(244, 238, 223, 0.45);
 }
 
 /* ---------------------------- */
@@ -1517,32 +1597,33 @@ main {
 #run-detection-btn {
   padding: 12px 16px;
   border-radius: 4px;
-  background: #8ab6f9;
-  color: #00246b;
+  background: #d4a017;
+  color: #17140b;
   border: none;
   margin-top: 10px;
   font-weight: 600;
   font-family: 'Inter', sans-serif;
+  letter-spacing: 0.2px;
   cursor: pointer;
-  align-self: flex-start; /* aligns nicely under textarea */
-  transition: background 0.25s ease, transform 0.15s ease;
+  align-self: flex-start;
+  box-shadow: 0 2px 8px rgba(212, 160, 23, 0.18);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
 }
 
 #run-detection-btn:hover {
-  background: #cadcfc;
+  background: #e8b52a;
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(212, 160, 23, 0.3);
 }
 
 #run-detection-btn:active {
   transform: translateY(1px);
+  box-shadow: 0 1px 4px rgba(212, 160, 23, 0.2);
 }
 
-/* ---------------------------- */
-/* Detection Result Bubble */
-/* ---------------------------- */
 .chat-bubble.detect-result {
   align-self: flex-start;
-  background: rgba(255, 198, 0, 0.1);
+  background: rgba(255, 198, 0, 0.01);
   border-left: 6px solid #ffeb3b;
   color: #ffeb3b;
   padding: 14px;
@@ -1551,12 +1632,11 @@ main {
   line-height: 1.4;
   border-radius: 12px;
   backdrop-filter: blur(6px);
-  box-shadow: 0 0 14px rgba(255, 235, 59, 0.4);
+  box-shadow: 0 0 14px rgba(255, 235, 59, 0.1);
   margin-top: 8px;
   max-width: 100%;
   animation: fadeIn 0.3s ease-out;
 }
-
 /* ---------------------------- */
 /* Reuse fadeIn for detection bubble */
 @keyframes fadeIn {
@@ -1605,7 +1685,10 @@ main {
 .humanizer-container {
   width: 100%;
   max-width: 640px;
-  background: linear-gradient(180deg, #111327, #161a35);
+background: rgba(255, 255, 255, 0.04);
+backdrop-filter: blur(16px);
+-webkit-backdrop-filter: blur(16px);
+border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
@@ -1616,7 +1699,7 @@ main {
   flex-direction: column;
   gap: 16px;
   font-family: 'Exo 2', sans-serif;
-  color: #ececf4;
+  color: white;
 }
 
 .humanizer-header {
@@ -1647,7 +1730,6 @@ main {
   gap: 8px;
 }
 
-
 /* =========================
    Input
 ========================= */
@@ -1655,27 +1737,46 @@ main {
   width: 100%;
   min-height: 160px;
   padding: 14px;
+
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: #0e1024;
+  border: 1px solid rgba(123, 92, 255, 0.12);
+
+  background: rgba(16, 18, 42, 0.45);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+
   color: #ececf4;
   font-size: 0.95rem;
   line-height: 1.6;
+
   resize: vertical;
   outline: none;
-  transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-sizing: border-box;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 6px 18px rgba(0, 0, 0, 0.18);
+
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
 }
 
 #humanize-input::placeholder {
-  color: rgba(236, 236, 244, 0.38);
+  color: rgba(236, 236, 244, 0.45);
 }
 
 #humanize-input:focus {
-  background: #10122a;
-  border-color: rgba(123, 92, 255, 0.7);
-  box-shadow: 0 0 0 2px rgba(123, 92, 255, 0.22);
-}
+  background: rgba(20, 22, 48, 0.60);
+  border-color: rgba(123, 92, 255, 0.45);
 
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 3px rgba(123, 92, 255, 0.10),
+    0 10px 28px rgba(0, 0, 0, 0.28);
+}
 /* =========================
    Action Row
 ========================= */
@@ -1707,12 +1808,6 @@ main {
   font-weight: 100;
   letter-spacing: 0.45px;
   isolation: isolate;
-
-  box-shadow:
-    0 0 0 1px rgba(123, 92, 255, 0.45),
-    0 10px 30px rgba(74, 92, 255, 0.55),
-    0 0 28px rgba(123, 92, 255, 0.35);
-
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -1739,49 +1834,53 @@ main {
   transition: opacity 0.2s ease;
 }
 
-/* Holographic sheen */
-#run-humanizer-btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    115deg,
-    rgba(255,255,255,0.35) 0%,
-    rgba(255,255,255,0.05) 40%,
-    rgba(255,255,255,0.0) 60%
-  );
-  opacity: 0.35;
-  pointer-events: none;
-}
-
 /* Hover */
 #run-humanizer-btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
-  box-shadow:
-    0 0 0 1px rgba(155, 135, 255, 0.6),
-    0 16px 42px rgba(74, 92, 255, 0.7),
-    0 0 42px rgba(123, 92, 255, 0.55);
-}
-
-#run-humanizer-btn:hover::before {
-  opacity: 0.9;
+  transform: translateY(-1px);
+  background: #9b66ff;
+  box-shadow: 0 4px 14px rgba(138, 79, 255, 0.32);
 }
 
 /* Active / Press */
 #run-humanizer-btn:active {
-  transform: translateY(0);
-  filter: brightness(1);
+  transform: translateY(1px);
+  background: #7a3fef;
+  box-shadow: 0 1px 4px rgba(138, 79, 255, 0.2);
 }
 
 .chat-bubble.humanizer-ai {
-  background: linear-gradient(135deg, #8a2be2, #5f00ff, #a64cff);
-  color: #ffffff;
+  align-self: flex-start;
+
+  background: rgba(138, 79, 255, 0.03);
+  border-left: 6px solid #8a4fff;
+
+  color: #f4f0ff;
+
+  padding: 14px;
   border-radius: 12px;
-  padding: 10px 14px;
+
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.95rem;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(90, 0, 255, 0.3);
+  line-height: 1.6;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  box-shadow: 0 0 14px rgba(138, 79, 255, 0.12);
+
+  margin-top: 8px;
+  max-width: 100%;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  animation: fadeIn 0.3s ease-out;
+
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .scroll-bottom-btn {
@@ -1813,6 +1912,11 @@ main {
   stroke: #fff; /* arrow color */
 }
 
+@media (max-width: 768px) {
+  .scroll-bottom-btn {
+    bottom: 240px;
+  }
+}
 
 
 .credits-modal {

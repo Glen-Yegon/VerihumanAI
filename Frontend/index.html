@@ -369,17 +369,14 @@
 
 <!-- Detection Mode UI (appears below last chat message) -->
 <div id="detection-ui" class="detection-ui hidden">
-  <div class="chat-wrapper ai">
-    <div class="avatar" id="detection-avatar" 
-         style="background-image: url('images/veri-logo.png')">
+  <div class="detector-panel">
+    <div class="detector-panel-header">
+      <span class="detector-panel-label">AI Detection</span>
     </div>
-    <div class="chat-bubble ai">
-      <textarea id="detect-input" placeholder="Paste text here for AI detection..."></textarea>
-      <button id="run-detection-btn">Run Detection</button>
-    </div>
+    <textarea id="detect-input" placeholder="Paste text here for AI detection..."></textarea>
+    <button id="run-detection-btn">Run Detection</button>
   </div>
 </div>
-
 <!-- HUMANIZER Mode UI -->
 <div id="humanizer-ui" class="humanizer-ui hidden">
   <div class="humanizer-container">

@@ -1076,7 +1076,7 @@ async function compressImage(file, { maxWidth = 1400, quality = 0.8 } = {}) {
 }
 
 
-async function sendPromptToAPI(promptText, files = [], signal = null) {
+async function sendPromptToAPI(promptText, files = [], signal = null, onChunk = null) {
   let res;
   const fetchOpts = signal ? { signal } : {};
 
@@ -1121,7 +1121,9 @@ async function sendPromptToAPI(promptText, files = [], signal = null) {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    full += decoder.decode(value, { stream: true });
+    const chunk = decoder.decode(value, { stream: true });
+    full += chunk;
+    if (onChunk) onChunk(chunk); // ✅ stream each chunk to the caller live
   }
   return { reply: full };
 }
@@ -1176,8 +1178,22 @@ async function handleSend() {
   currentAbortController = new AbortController();
   const signal = currentAbortController.signal;
 
+  let streamedSoFar = "";
+  let firstChunkReceived = false;
+
   try {
-    const data = await sendPromptToAPI(text, filesToSend, signal);
+    const data = await sendPromptToAPI(text, filesToSend, signal, (chunk) => {
+      // Live "typing" effect — show raw streamed text as it arrives
+      if (!firstChunkReceived) {
+        aiBubble.classList.remove("scanning");
+        aiBubble.style.whiteSpace = "pre-wrap";
+        aiBubble.style.wordBreak = "break-word";
+        firstChunkReceived = true;
+      }
+      streamedSoFar += chunk;
+      aiBubble.textContent = streamedSoFar;
+      scrollToBottom();
+    });
 
     // ✅ Swap buttons IMMEDIATELY when response arrives
     sendBtn.style.display = "";
@@ -1186,6 +1202,8 @@ async function handleSend() {
 
     const reply = typeof data.reply === "string" ? data.reply : "[No reply]";
 
+    // Now that streaming is complete, swap in the fully-formatted version
+    // (code highlighting, images, copy button)
     aiBubble.classList.remove("scanning");
     const rendered = renderAIWithDetectedMedia(reply);
     aiBubble.innerHTML = rendered.html;
