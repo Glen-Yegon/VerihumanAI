@@ -1945,6 +1945,21 @@ function removeGreetingBubble() {
   }
 }
 
+// ========================================
+// DISMISS GREETING ON ANY USER INTERACTION
+// ========================================
+
+function dismissGreetingOnInteraction() {
+  if (!window.greetingActive) return;
+
+  removeGreetingBubble();
+}
+
+// Desktop clicks + mobile taps
+document.addEventListener("pointerdown", dismissGreetingOnInteraction);
+
+// Keyboard interaction
+document.addEventListener("keydown", dismissGreetingOnInteraction);
 
 // ------------------------
 // Load previous chat on start
